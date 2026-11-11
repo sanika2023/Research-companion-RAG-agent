@@ -1,0 +1,10 @@
+.env
+__pycache__/
+.venv/
+node_modules/
+.next/
+.pytest_cache/
+.coverage
+eval/results/*.json
+backend/data/
+CLAUDE.md
