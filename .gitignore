@@ -8,3 +8,5 @@ node_modules/
 eval/results/*.json
 backend/data/
 CLAUDE.md
+*.pdf
+!backend/tests/fixtures/*.pdf
