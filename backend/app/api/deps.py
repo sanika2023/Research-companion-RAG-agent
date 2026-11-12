@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from app.core.config import IngestSettings, get_settings
+from app.core.config import IngestSettings, RetrievalSettings, get_settings
 from app.llm.base import Embedder
 from app.llm.embeddings import FastEmbedEmbedder
 
@@ -14,3 +14,7 @@ def get_embedder() -> Embedder:
 
 def get_ingest_settings() -> IngestSettings:
     return get_settings().ingest
+
+
+def get_retrieval_settings() -> RetrievalSettings:
+    return get_settings().retrieval

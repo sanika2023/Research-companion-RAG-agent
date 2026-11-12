@@ -5,10 +5,17 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
+
+from app.api.deps import get_embedder, get_ingest_settings, get_retrieval_settings
+from app.core.config import IngestSettings, RetrievalSettings
+from app.db.session import get_session
+from app.main import app
+from tests.conftest import FakeEmbedder
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 ADMIN_URL = os.environ.get(
@@ -59,3 +66,26 @@ async def async_engine(migrated_db_url: str) -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(migrated_db_url, poolclass=NullPool)
     yield engine
     await engine.dispose()
+
+
+@pytest.fixture
+async def client(
+    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
+) -> AsyncIterator[AsyncClient]:
+    """The real app wired to the test database, the fake embedder, and a temp upload dir."""
+
+    async def test_session() -> AsyncIterator[AsyncSession]:
+        async with AsyncSession(async_engine, expire_on_commit=False) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = test_session
+    app.dependency_overrides[get_embedder] = FakeEmbedder
+    app.dependency_overrides[get_ingest_settings] = lambda: IngestSettings(
+        chunk_size=1000, chunk_overlap=150, max_upload_mb=1, upload_dir=tmp_path
+    )
+    app.dependency_overrides[get_retrieval_settings] = lambda: RetrievalSettings(
+        top_k=8, candidates=40, rrf_k=60
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        yield c
+    app.dependency_overrides.clear()

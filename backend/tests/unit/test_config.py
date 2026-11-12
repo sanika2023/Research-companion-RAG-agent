@@ -73,3 +73,17 @@ def test_overlap_not_smaller_than_size_fails_at_startup(env: pytest.MonkeyPatch)
 
     with pytest.raises(ValidationError):
         load_settings()
+
+
+def test_retrieval_defaults(env: pytest.MonkeyPatch) -> None:
+    retrieval = load_settings().retrieval
+
+    assert (retrieval.top_k, retrieval.candidates, retrieval.rrf_k) == (8, 40, 60)
+
+
+def test_top_k_larger_than_candidates_fails_at_startup(env: pytest.MonkeyPatch) -> None:
+    env.setenv("RETRIEVAL_TOP_K", "50")
+    env.setenv("RETRIEVAL_CANDIDATES", "40")
+
+    with pytest.raises(ValidationError):
+        load_settings()

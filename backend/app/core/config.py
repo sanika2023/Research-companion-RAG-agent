@@ -25,11 +25,19 @@ class Settings(BaseSettings):
     max_upload_mb: int = Field(default=50, gt=0)
     upload_dir: Path = Path("data/uploads")
 
+    retrieval_top_k: int = Field(default=8, gt=0)
+    # How many hits each search (keyword, vector) contributes before fusion.
+    retrieval_candidates: int = Field(default=40, gt=0)
+    # 60 is the constant from the original RRF paper (Cormack et al., 2009).
+    rrf_k: int = Field(default=60, gt=0)
+
     @model_validator(mode="after")
-    def _overlap_fits_in_chunk(self) -> Self:
-        # Fail at startup, not on the first upload.
+    def _consistent(self) -> Self:
+        # Fail at startup, not on the first request.
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError("CHUNK_OVERLAP must be smaller than CHUNK_SIZE")
+        if self.retrieval_top_k > self.retrieval_candidates:
+            raise ValueError("RETRIEVAL_TOP_K must not exceed RETRIEVAL_CANDIDATES")
         return self
 
     @property
@@ -41,6 +49,12 @@ class Settings(BaseSettings):
             upload_dir=self.upload_dir,
         )
 
+    @property
+    def retrieval(self) -> "RetrievalSettings":
+        return RetrievalSettings(
+            top_k=self.retrieval_top_k, candidates=self.retrieval_candidates, rrf_k=self.rrf_k
+        )
+
 
 @dataclass(frozen=True)
 class IngestSettings:
@@ -50,6 +64,13 @@ class IngestSettings:
     chunk_overlap: int
     max_upload_mb: int
     upload_dir: Path
+
+
+@dataclass(frozen=True)
+class RetrievalSettings:
+    top_k: int
+    candidates: int
+    rrf_k: int
 
 
 @lru_cache
