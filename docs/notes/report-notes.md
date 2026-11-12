@@ -54,7 +54,7 @@ so every stored piece of text carries its provenance.
 
 **What ingestion does**
 `PDF bytes → parse into text blocks with positions → split into chunks → embed → store`.
-Parsing and chunking are done; embedding, storage, and the upload endpoint are next.
+Phase 1a covers parsing and chunking; Phase 1b covers embedding, storage, and the upload API.
 
 **Parsing (`ingestion/parse.py`, PyMuPDF)**
 - Extracts each page's text *blocks* (roughly paragraphs) with bounding boxes
@@ -87,8 +87,11 @@ Parsing and chunking are done; embedding, storage, and the upload endpoint are n
 | Paper | Layout | Pages | Chunks | Avg chars/chunk |
 |---|---|---|---|---|
 | Khan & Fu — consistency for black-box VQA | two-column | 15 | 74 | 901 |
-| Wang & Ji — epistemic UQ for pre-trained NNs | two-column, math-heavy | 18 | 96 | 907 |
-| Yang et al. — MetaQA hallucination detection | single-column (ACM) | 21 | 98 | 902 |
+| Wang & Ji — epistemic UQ for pre-trained NNs | two-column, math-heavy | 18 | 94 | 907 |
+| Yang et al. — MetaQA hallucination detection | single-column (ACM) | 21 | 97 | 902 |
+
+(Counts are after the hyphen fix; rejoining split words shortened the text slightly, from
+96 and 98 chunks before. Avg chars/chunk was measured before the fix.)
 
 **Bugs found by testing** (useful as evidence that TDD caught real defects)
 - The chunker emitted a duplicate tail chunk at the end of every page. Caught by the test
@@ -121,7 +124,60 @@ Parsing and chunking are done; embedding, storage, and the upload endpoint are n
 
 ---
 
+## Phase 1b — Ingestion: embedding, storage, upload API (branch `feat/ingestion`)
+
+**What was built** (see ADR 0002)
+- `FastEmbedEmbedder`: bge-small-en-v1.5 running locally via ONNX (no GPU, no API key). Each
+  chunk becomes a 384-number vector; texts with similar meaning get nearby vectors, which is
+  what semantic search will compare. Embedding runs in a worker thread so the async server
+  keeps answering other requests meanwhile.
+- `ingest_pdf` pipeline: parse → chunk → embed → store, in **one database transaction**.
+  The original PDF is saved as `{doc_id}.pdf` for the viewer. If anything fails (bad PDF,
+  disk error), the transaction rolls back: no half-ingested papers.
+- API: `POST /documents` (upload, returns doc id + page/chunk counts) and `GET /documents`
+  (list with chunk counts). Bad files → 400, oversize → 413 (`MAX_UPLOAD_MB`, default 50).
+  Filenames are reduced to their base name, so a client can't send `../../x.pdf`.
+- Chunk size/overlap are environment settings, validated at startup (overlap < size), so
+  the evaluation can compare chunk sizes without code changes.
+- Docker: the embedding model (65 MB) is downloaded at image build time; uploaded PDFs live
+  in a named volume so they survive rebuilds.
+- Testing: unit tests use a deterministic fake embedder; integration tests run the pipeline
+  and API against a real Postgres test database. One integration test loads the real model
+  and checks that related sentences are closer than unrelated ones.
+
+**Results** (Docker, laptop CPU, 1000 / 150)
+
+| Paper | Pages | Chunks | Upload time |
+|---|---|---|---|
+| Khan & Fu (black-box VQA) | 15 | 74 | 14 s |
+| Wang & Ji (epistemic UQ) | 18 | 94 | 24 s |
+| Yang et al. (MetaQA) | 21 | 97 | 21 s |
+
+Parsing + chunking takes ~0.2 s per paper; **embedding is ~95% of ingestion time**
+(~0.17 s per chunk on CPU). Smaller embedding batches helped only slightly (16 s → 12 s).
+
+**Bugs found by testing**
+- Reading the new document's id after `commit()` crashed under async SQLAlchemy (committed
+  objects are expired, and reloading would need a hidden synchronous query). Caught by the
+  pipeline integration tests; fixed by reading the id before committing.
+- A test simulating a disk-write failure confirmed the rollback leaves no orphan rows.
+
+**Limitations to discuss**
+- **Ingestion is synchronous:** the upload request waits ~15–25 s. Free-tier hosts have
+  slower CPUs, so this may approach request timeouts there. A background job with a status
+  endpoint is the standard fix (deferred).
+- **No duplicate detection:** uploading the same paper twice stores it twice.
+- **Uploaded PDFs are on local disk.** Free container hosts typically have ephemeral disks,
+  so stored PDFs may vanish on restart in the deployed version (to resolve in Phase 4).
+- **No OCR:** scanned PDFs are rejected with a clear error rather than ingested.
+- **Development environment note:** TLS-intercepting software on the dev machine blocked the
+  model download from Hugging Face (certificate not trusted by Python); worked around once
+  with the Windows certificate store. Not an issue inside Docker.
+
+---
+
 ## Ideas for the evaluation chapter
 - Compare chunk sizes (e.g. 500 / 1,000 / 1,500) on retrieval quality for the eval queries.
 - Measure how often the correct page appears in the top-k retrieved chunks (page-level recall).
 - Include formula-heavy questions to quantify the math-extraction limitation.
+- Report ingestion time per paper (and per chunk) locally vs. on the deployed host.
