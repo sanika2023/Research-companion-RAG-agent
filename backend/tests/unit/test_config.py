@@ -49,3 +49,27 @@ def test_api_key_is_not_leaked_in_repr(env: pytest.MonkeyPatch) -> None:
 
 def test_langsmith_tracing_is_off_by_default(env: pytest.MonkeyPatch) -> None:
     assert load_settings().langsmith_tracing is False
+
+
+def test_ingestion_defaults(env: pytest.MonkeyPatch) -> None:
+    settings = load_settings()
+
+    assert (settings.chunk_size, settings.chunk_overlap) == (1000, 150)
+    assert settings.max_upload_mb == 50
+
+
+def test_chunking_is_tunable_from_environment(env: pytest.MonkeyPatch) -> None:
+    env.setenv("CHUNK_SIZE", "500")
+    env.setenv("CHUNK_OVERLAP", "50")
+
+    settings = load_settings()
+
+    assert (settings.chunk_size, settings.chunk_overlap) == (500, 50)
+
+
+def test_overlap_not_smaller_than_size_fails_at_startup(env: pytest.MonkeyPatch) -> None:
+    env.setenv("CHUNK_SIZE", "100")
+    env.setenv("CHUNK_OVERLAP", "100")
+
+    with pytest.raises(ValidationError):
+        load_settings()

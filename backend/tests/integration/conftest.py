@@ -6,6 +6,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -27,10 +28,16 @@ def _alembic_config(url: str) -> Config:
 @pytest.fixture(scope="session")
 def migrated_db_url() -> Iterator[str]:
     """A fresh database built purely by running the migrations."""
-    admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
-    with admin.connect() as conn:
-        conn.execute(text(f"DROP DATABASE IF EXISTS {TEST_DB} WITH (FORCE)"))
-        conn.execute(text(f"CREATE DATABASE {TEST_DB}"))
+    # Short timeout so a stopped container skips fast instead of hanging for minutes.
+    admin = create_engine(
+        ADMIN_URL, isolation_level="AUTOCOMMIT", connect_args={"connect_timeout": 3}
+    )
+    try:
+        with admin.connect() as conn:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {TEST_DB} WITH (FORCE)"))
+            conn.execute(text(f"CREATE DATABASE {TEST_DB}"))
+    except OperationalError:
+        pytest.skip("Postgres not reachable; start it with `docker compose up -d db`")
     command.upgrade(_alembic_config(TEST_URL), "head")
     yield TEST_URL
     with admin.connect() as conn:
