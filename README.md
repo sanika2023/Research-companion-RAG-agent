@@ -9,9 +9,52 @@ This uses a RAG system and references items in the given ground truth.
 ## Architecture
 
 
-## Quick start
+## Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running)
+- [uv](https://docs.astral.sh/uv/) for local backend development (installs Python 3.12 itself)
+- A Gemini API key from Google AI Studio
+
+## Setup
 ```bash
-cp .env.example .env   # fill in keys
+cp .env.example .env   # then fill in LLM_API_KEY
+```
+`.env` is gitignored; never commit it.
+
+## Run with Docker (full stack)
+```bash
 docker compose up --build
 ```
+- API health: http://localhost:8000/health
+- Interactive API docs: http://localhost:8000/docs
+
+The backend applies database migrations automatically on startup. Postgres is exposed on host
+port **5433** (not 5432) to avoid clashing with a locally installed Postgres.
+
+## Run the backend locally (auto-reload)
+```bash
+docker compose up -d db          # database only
+cd backend
+uv sync                          # install dependencies
+uv run alembic upgrade head      # create/update tables
+uv run uvicorn app.main:app --reload
+```
+
+## Tests
+```bash
+cd backend
+uv run pytest tests/unit         # fast, no database needed
+uv run pytest                    # everything; integration tests need `docker compose up -d db`
+```
+
+## Stopping
+```bash
+docker compose down              # stop containers, keep data
+docker compose down -v           # stop and DELETE the database volume
+```
+Press `Ctrl+C` to stop a locally running `uvicorn`.
+
+## Troubleshooting
+- **`docker` not recognized:** restart VS Code / your terminal after installing Docker Desktop.
+- **`invalid peer certificate: UnknownIssuer` from uv:** add `--system-certs` (e.g.
+  `uv run --system-certs pytest`) so uv trusts the Windows certificate store.
 
