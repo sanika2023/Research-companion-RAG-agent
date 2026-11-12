@@ -36,6 +36,15 @@ Use the **Try it out** button on `POST /documents` at http://localhost:8000/docs
 curl -F "file=@paper.pdf" http://localhost:8000/documents   # -> doc_id, page_count, chunk_count
 curl http://localhost:8000/documents                        # list uploaded papers
 ```
+## Search a paper
+Searches are scoped to one paper (hybrid keyword + vector search, fused with RRF):
+```bash
+curl -X POST http://localhost:8000/documents/<doc_id>/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Which datasets were used?", "top_k": 5}'
+```
+Each hit has the page, text, bounding boxes, and its `keyword_rank` / `vector_rank`.
+
 Ingestion takes roughly 15–25 s per paper on a laptop CPU (embedding dominates). Original
 PDFs are kept in the `uploads` Docker volume (or `backend/data/uploads/` when run locally).
 
@@ -66,6 +75,10 @@ Press `Ctrl+C` to stop a locally running `uvicorn`.
 - **`docker` not recognized:** restart VS Code / your terminal after installing Docker Desktop.
 - **`invalid peer certificate: UnknownIssuer` from uv:** add `--system-certs` (e.g.
   `uv run --system-certs pytest`) so uv trusts the Windows certificate store.
+- **`role "rag" does not exist` when running locally:** your `.env` points at port 5432 (a
+  native Postgres). Docker's database is on **5433**; copy `DATABASE_URL` from `.env.example`.
+- **`Psycopg cannot use the 'ProactorEventLoop'` on Windows:** run uvicorn with `--reload`
+  (as above), which uses a compatible event loop. Docker (Linux) is unaffected.
 - **Embedding model download fails with `CERTIFICATE_VERIFY_FAILED`** (local runs only; Docker
   bakes the model in): Python doesn't trust a TLS-intercepting proxy/antivirus. Download the
   model once into `backend/data/models/` using the Windows certificate store:

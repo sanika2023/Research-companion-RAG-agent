@@ -1,39 +1,11 @@
-from collections.abc import AsyncIterator
-from pathlib import Path
-
 import pytest
-from httpx import ASGITransport, AsyncClient, Response
-from sqlalchemy import Engine
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from httpx import AsyncClient, Response
 
-from app.api.deps import get_embedder, get_ingest_settings
-from app.core.config import IngestSettings
-from app.db.session import get_session
-from app.main import app
-from tests.conftest import FakeEmbedder
 from tests.pdf_factory import Text, make_pdf
 
 pytestmark = pytest.mark.integration
 
 PDF = make_pdf([[Text(72, 72, "Attention is all you need.")], [Text(72, 72, "Page two.")]])
-
-
-@pytest.fixture
-async def client(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
-) -> AsyncIterator[AsyncClient]:
-    async def test_session() -> AsyncIterator[AsyncSession]:
-        async with AsyncSession(async_engine, expire_on_commit=False) as session:
-            yield session
-
-    app.dependency_overrides[get_session] = test_session
-    app.dependency_overrides[get_embedder] = FakeEmbedder
-    app.dependency_overrides[get_ingest_settings] = lambda: IngestSettings(
-        chunk_size=1000, chunk_overlap=150, max_upload_mb=1, upload_dir=tmp_path
-    )
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        yield c
-    app.dependency_overrides.clear()
 
 
 async def upload(client: AsyncClient, data: bytes, name: str = "paper.pdf") -> Response:

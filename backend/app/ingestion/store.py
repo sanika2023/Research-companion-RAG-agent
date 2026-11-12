@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,3 +43,7 @@ async def list_documents(session: AsyncSession) -> list[tuple[models.Document, i
         .order_by(models.Document.created_at.desc())
     )
     return [(doc, count) for doc, count in rows.tuples()]
+
+
+async def get_document(session: AsyncSession, doc_id: uuid.UUID) -> models.Document | None:
+    return await session.get(models.Document, doc_id)

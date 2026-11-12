@@ -176,8 +176,73 @@ Parsing + chunking takes ~0.2 s per paper; **embedding is ~95% of ingestion time
 
 ---
 
+## Phase 2 — Hybrid retrieval (branch `feat/hybrid-retrieval`)
+
+**What was built** (see ADR 0003)
+- **Paper-scoped search:** the user selects one paper; `POST /documents/{doc_id}/search`
+  only ever looks at that paper's chunks.
+- **Keyword search** (Postgres full-text): stems the question ("hallucinations detected"
+  matches "hallucination detection") and matches chunks containing *any* question term,
+  ranking chunks with more matches higher.
+- **Vector search** (pgvector): compares the question's embedding with each chunk's, exactly.
+- **Reciprocal Rank Fusion:** `score = 1/(60 + keyword rank) + 1/(60 + vector rank)`.
+  Uses ranks, not raw scores, because the two searches score on unrelated scales.
+- **Each hit reports both ranks**, e.g. `p13 (keyword #4, vector #8)`, so the system can
+  show *why* a passage was retrieved. This supports the auditability goal and the later
+  diagnostics view.
+- Search takes ~0.3 s (only the question is embedded; chunks were embedded at upload).
+
+**Why keyword terms are OR-ed:** Postgres' default (`plainto_tsquery`) requires *every*
+word. For natural-language questions, a passage missing even one word is excluded entirely.
+OR gives recall; the ranking and fusion with vector search provide precision.
+
+**Finding: approximate vector search can silently miss the selected paper.** The HNSW index
+finds the nearest chunks across *all* papers first, then filters to the selected paper. With
+the index forced on, a query whose nearest neighbours were in another paper returned **0 of
+10** chunks of the selected paper (pgvector default) vs. 10 of 10 with iterative scanning.
+The design avoids the problem entirely by searching the selected paper exactly (it has only
+~100 chunks), which is correct by construction and fast at any number of papers. A test
+reproduces the crowding scenario and fails if the query ever switches to the approximate index.
+
+**Qualitative comparison on the sample papers** (top 3 per method)
+
+| Question (paper) | Keyword only | Vector only | Hybrid |
+|---|---|---|---|
+| How does MetaQA compare to SelfCheckGPT? (MetaQA) | intro, RQ4, results | RQ4, results | RQ4, results, **p13 "MetaQA outperforms SelfCheckGPT in all seven categories"** (keyword #4, vector #8: in neither top 3) |
+| Which datasets were used? (MetaQA) | related work, figure caption | **dataset section (HotpotQA, FreshQA)** | related work + **dataset section** |
+| What is the rephrasing strategy? (Khan & Fu) | appendix, figure caption (weak) | **method section (p4)** | **method section ×2**, appendix |
+| What gradient-based method is proposed? (Wang & Ji) | contribution (p2) | discussion (p17), contribution | both |
+
+Takeaways: fusion can surface a passage that both methods rank moderately but neither ranks
+highly; vector search covers keyword search's misses on paraphrased questions, and keyword
+search anchors exact terms ("SelfCheckGPT", "gradient-based").
+
+**Bugs found by testing / experiments**
+- A test meant to reproduce index crowding passed even with the protection removed: the test
+  used 60 *identical* vectors, which HNSW collapses into one graph entry. Using 60 distinct
+  nearby vectors made the test fail as intended. (Lesson: verify a test can fail.)
+- Initial RRF test expectation had an exact tie (1/(1+1) = 2/(1+3)); caught before
+  implementation and corrected.
+
+**Limitations to discuss**
+- **Running headers leak into chunks.** The MetaQA paper repeats its title and author line on
+  every page; that text lands in chunks, so keyword search matches title words on unrelated
+  pages (p5, p7 for a "metamorphic relations" query). Fix: drop text blocks that repeat at the
+  same position across most pages (ingestion change; not yet done).
+- Keyword ranking is `ts_rank_cd`, not true BM25 (see Phase 0).
+- English stemming only; non-English papers get weaker keyword search.
+- bge-small recommends a query instruction prefix ("Represent this sentence for searching
+  relevant passages: "); not used yet. Worth measuring in the evaluation.
+- RRF constants (k = 60, 40 candidates, top 8) are standard defaults, not tuned.
+
+---
+
 ## Ideas for the evaluation chapter
 - Compare chunk sizes (e.g. 500 / 1,000 / 1,500) on retrieval quality for the eval queries.
 - Measure how often the correct page appears in the top-k retrieved chunks (page-level recall).
 - Include formula-heavy questions to quantify the math-extraction limitation.
 - Report ingestion time per paper (and per chunk) locally vs. on the deployed host.
+- Ablation: keyword-only vs. vector-only vs. hybrid on the eval queries (hit rate of the
+  correct page in the top k). The search code already exposes each method separately.
+- With vs. without the bge query prefix; RRF k (e.g. 10 / 60) and candidate depth.
+- Effect of removing running headers/footers on keyword precision.
