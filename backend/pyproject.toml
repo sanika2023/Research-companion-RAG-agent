@@ -11,6 +11,9 @@ dependencies = [
     "psycopg[binary]>=3.3.8",
     "alembic>=1.20.1",
     "pgvector>=0.5.1",
+    "pymupdf>=2.1",
+    "fastembed>=0.9.1",
+    "python-multipart>=0.0.33",
 ]
 
 [dependency-groups]
@@ -35,3 +38,9 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 
 [tool.mypy]
 strict = true
+
+# PyMuPDF ships partial type hints that strict mode rejects; treat it as untyped.
+[[tool.mypy.overrides]]
+module = ["pymupdf", "pymupdf.*"]
+follow_imports = "skip"
+ignore_missing_imports = true
