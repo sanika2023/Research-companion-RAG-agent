@@ -36,6 +36,20 @@ Use the **Try it out** button on `POST /documents` at http://localhost:8000/docs
 curl -F "file=@paper.pdf" http://localhost:8000/documents   # -> doc_id, page_count, chunk_count
 curl http://localhost:8000/documents                        # list uploaded papers
 ```
+Ingestion takes roughly 15–25 s per paper on a laptop CPU (embedding dominates). Original
+PDFs are kept in the `uploads` Docker volume (or `backend/data/uploads/` when run locally).
+
+## Ask a question about a paper
+Needs `LLM_API_KEY` (a free Gemini API key from Google AI Studio) in `.env`.
+```bash
+curl -X POST http://localhost:8000/documents/<doc_id>/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Which datasets were used to evaluate the method?"}'
+```
+The answer cites passages as `[n]`; each citation has its page, text, and bounding boxes.
+`refused: true` means the paper doesn't answer the question. A `503` means Gemini is busy:
+retry, or set `LLM_ANSWER_MODEL` to the Flash-Lite model.
+
 ## Search a paper
 Searches are scoped to one paper (hybrid keyword + vector search, fused with RRF):
 ```bash
@@ -44,9 +58,6 @@ curl -X POST http://localhost:8000/documents/<doc_id>/search \
   -d '{"query": "Which datasets were used?", "top_k": 5}'
 ```
 Each hit has the page, text, bounding boxes, and its `keyword_rank` / `vector_rank`.
-
-Ingestion takes roughly 15–25 s per paper on a laptop CPU (embedding dominates). Original
-PDFs are kept in the `uploads` Docker volume (or `backend/data/uploads/` when run locally).
 
 ## Run the backend locally (auto-reload)
 ```bash
@@ -77,6 +88,8 @@ Press `Ctrl+C` to stop a locally running `uvicorn`.
   `uv run --system-certs pytest`) so uv trusts the Windows certificate store.
 - **`role "rag" does not exist` when running locally:** your `.env` points at port 5432 (a
   native Postgres). Docker's database is on **5433**; copy `DATABASE_URL` from `.env.example`.
+- **`/ask` returns 404 from Gemini or always 503:** model names change; list the ones your
+  key can use in Google AI Studio and update `LLM_ANSWER_MODEL` / `LLM_LIGHT_MODEL`.
 - **`Psycopg cannot use the 'ProactorEventLoop'` on Windows:** run uvicorn with `--reload`
   (as above), which uses a compatible event loop. Docker (Linux) is unaffected.
 - **Embedding model download fails with `CERTIFICATE_VERIFY_FAILED`** (local runs only; Docker

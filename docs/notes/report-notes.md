@@ -237,6 +237,68 @@ search anchors exact terms ("SelfCheckGPT", "gradient-based").
 
 ---
 
+## Phase 3 — Agent with cited answers (branch `feat/agent`)
+
+**What was built** (see ADR 0004)
+- A LangGraph agent: `classify → [decompose] → retrieve → synthesize → check_citations`, or
+  `refuse` when retrieval finds nothing. `POST /documents/{doc_id}/ask` returns the answer,
+  citations (number, page, chunk id, text, bbox), sub-questions, a refusal flag, and audit
+  flags.
+- **Citation verification in code:** the model's `[n]` markers are checked against the
+  passages it was actually shown; invented ones are removed and flagged; answers with no
+  valid citation are flagged `uncited`. This turns "the model says it cited something" into
+  "the system verified every citation points to real retrieved text".
+- **Refusal:** with no relevant passages, the model is never called; if passages exist but
+  don't answer the question, the model is instructed to reply `NOT_FOUND`.
+- Gemini client with two tiers (Flash-Lite for routing, Flash for answers), structured JSON
+  output for routing, retries with backoff on 429/500/503, and a request deadline.
+- All agent logic is tested with a fake LLM and fake search (no network): 22 node/graph tests
+  plus API integration tests against the real database.
+
+**Results** (Docker; Flash-Lite for both tiers because Flash was overloaded, see below)
+
+| Question (paper) | Type | Time | Outcome |
+|---|---|---|---|
+| Which datasets were used to evaluate MetaQA? | simple | 2.8 s | TruthfulQA(-Enhanced), HotpotQA, FreshQA; 3 citations, each verified to mention all three |
+| How does MetaQA compare to SelfCheckGPT, and why? | multi (2 sub-q) | 3.3 s | comparison + reasons, 5 citations incl. p13 "outperforms in all seven categories" |
+| What is the rephrasing strategy? (Khan & Fu) | simple | 2.3 s | VQG-generated rephrasings, nucleus sampling p = 0.9; 3 citations |
+| Why can't the method use model internals, and what instead? | multi (2) | 5.8 s | API-only black boxes → consistency over rephrasings from a white-box proxy; 5 citations |
+| How is epistemic uncertainty estimated without retraining? | multi (2) | 10.1 s | gradient/perturbation methods, no retraining; 5 citations |
+| What are the three components…? (Wang & Ji) | multi (3) | 3.3 s | all three components named correctly; cites p2 where they are introduced |
+| What is the capital of France? (Wang & Ji) | — | 17.1 s | **refused** ("couldn't find the answer in the selected paper") |
+
+No answer triggered the `uncited` or `invalid_citations_removed` flags in this run.
+
+**Bugs and findings from testing**
+- The first Gemini probe hung for minutes: the SDK has no default timeout. Added a request
+  deadline. Google reports an expired deadline as HTTP 504, which the first version retried
+  (up to 4 × 60 s per question); a test now ensures 504 fails fast instead.
+- `gemini-2.5-flash` (the original default) returned 404 although still listed; it has been
+  retired. Newer Flash models (3.5–3.8) returned 503 "high demand" or 504 repeatedly during
+  development, while Flash-Lite answered in under a second to a few seconds.
+- A typing check (mypy) caught that LangGraph identifies nodes by a parameter literally named
+  `state`; fixed with a typed `Node` protocol.
+
+**Limitations to discuss**
+- **Dependence on a free hosted model:** availability of the stronger model was unreliable
+  during development. The system degrades (Flash-Lite works; 503 with a clear message when
+  nothing does), but answer quality varies with the model actually available. Report which
+  model produced each evaluation result.
+- **Citation checking verifies that a citation points to a real retrieved passage, not that
+  the passage supports the claim.** Support was spot-checked by hand here; the perturbation
+  inspector (next phase) and the evaluation address this more systematically.
+- **Over-decomposition:** "What are the three components…?" was split into three nearly
+  identical sub-questions (4 searches) though one search sufficed. Harmless but wasteful.
+- **Citation numbers are not sequential** in the answer text (e.g. [8] before [1]); the UI
+  can renumber for display.
+- Answers can contain LaTeX math (e.g. `$\theta \in [0.2, 0.7]$`); the UI must render
+  Markdown/math or show raw text.
+- Single-turn only: no memory of previous questions.
+- The refusal path still costs two model calls (classify, synthesize) when retrieval returns
+  loosely related passages; keyword OR-matching means retrieval is rarely empty.
+
+---
+
 ## Ideas for the evaluation chapter
 - Compare chunk sizes (e.g. 500 / 1,000 / 1,500) on retrieval quality for the eval queries.
 - Measure how often the correct page appears in the top-k retrieved chunks (page-level recall).
@@ -246,3 +308,6 @@ search anchors exact terms ("SelfCheckGPT", "gradient-based").
   correct page in the top k). The search code already exposes each method separately.
 - With vs. without the bge query prefix; RRF k (e.g. 10 / 60) and candidate depth.
 - Effect of removing running headers/footers on keyword precision.
+- Answer quality: Flash vs. Flash-Lite as the answer model; citation support rate (share of
+  cited passages that actually support the claim, judged by hand).
+- Refusal rate on out-of-scope questions vs. false refusals on answerable ones.
