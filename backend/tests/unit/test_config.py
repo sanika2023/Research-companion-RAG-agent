@@ -87,3 +87,10 @@ def test_top_k_larger_than_candidates_fails_at_startup(env: pytest.MonkeyPatch) 
 
     with pytest.raises(ValidationError):
         load_settings()
+
+
+def test_agent_defaults(env: pytest.MonkeyPatch) -> None:
+    settings = load_settings()
+
+    assert settings.llm_timeout_s == 60
+    assert (settings.agent.max_sub_questions, settings.agent.max_passages) == (4, 10)

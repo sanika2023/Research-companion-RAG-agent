@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr
     llm_answer_model: str
     llm_light_model: str
+    llm_timeout_s: float = Field(default=60, gt=0)
     embedding_model: str
     embedding_dim: int = 384
     embedding_cache_dir: Path = Path("data/models")
@@ -30,6 +31,10 @@ class Settings(BaseSettings):
     retrieval_candidates: int = Field(default=40, gt=0)
     # 60 is the constant from the original RRF paper (Cormack et al., 2009).
     rrf_k: int = Field(default=60, gt=0)
+
+    agent_max_sub_questions: int = Field(default=4, gt=0)
+    # Passages shown to the answer model; more = more context but a longer, costlier prompt.
+    agent_max_passages: int = Field(default=10, gt=0)
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -55,6 +60,12 @@ class Settings(BaseSettings):
             top_k=self.retrieval_top_k, candidates=self.retrieval_candidates, rrf_k=self.rrf_k
         )
 
+    @property
+    def agent(self) -> "AgentSettings":
+        return AgentSettings(
+            max_sub_questions=self.agent_max_sub_questions, max_passages=self.agent_max_passages
+        )
+
 
 @dataclass(frozen=True)
 class IngestSettings:
@@ -71,6 +82,12 @@ class RetrievalSettings:
     top_k: int
     candidates: int
     rrf_k: int
+
+
+@dataclass(frozen=True)
+class AgentSettings:
+    max_sub_questions: int
+    max_passages: int
 
 
 @lru_cache
