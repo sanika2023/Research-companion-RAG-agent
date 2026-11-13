@@ -50,6 +50,15 @@ The answer cites passages as `[n]`; each citation has its page, text, and boundi
 `refused: true` means the paper doesn't answer the question. A `503` means Gemini is busy:
 retry, or set `LLM_ANSWER_MODEL` to the Flash-Lite model.
 
+To watch the answer arrive as it is written, use the streaming endpoint (`-N` turns off
+curl's buffering):
+```bash
+curl -N -X POST http://localhost:8000/documents/<doc_id>/ask/stream   -H "Content-Type: application/json"   -d '{"question": "Which datasets were used to evaluate the method?"}'
+```
+It sends Server-Sent Events: `status` (each step as it starts), `sub_questions`, `token`
+(answer text), then `done` (the checked answer with citations, same as `/ask`) or `error`.
+Lines starting with `:` are keep-alive pings.
+
 ## Search a paper
 Searches are scoped to one paper (hybrid keyword + vector search, fused with RRF):
 ```bash

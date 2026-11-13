@@ -1,4 +1,7 @@
+from typing import Any
+
 from app.agent.nodes.synthesize import make_synthesize
+from app.agent.prompts import NOT_FOUND
 from app.agent.state import AgentState
 from tests.conftest import FakeLLM
 from tests.unit.agent.helpers import hit
@@ -28,3 +31,28 @@ async def test_synthesize_asks_to_cover_the_sub_questions() -> None:
     await make_synthesize(llm)(state)
 
     assert "- What is A?" in llm.prompts[0]
+
+
+async def test_synthesize_streams_the_answer_as_tokens_while_it_is_written() -> None:
+    llm = FakeLLM({"numbered passages": "MetaQA uses metamorphic relations [1]."})
+    events: list[Any] = []
+
+    update = await make_synthesize(llm)(
+        {"question": "q", "passages": [hit("p")]}, writer=events.append
+    )
+
+    tokens = [event["token"] for event in events]
+    assert len(tokens) > 1
+    assert "".join(tokens) == update["draft"] == "MetaQA uses metamorphic relations [1]."
+
+
+async def test_synthesize_never_streams_the_not_found_signal() -> None:
+    llm = FakeLLM({"numbered passages": NOT_FOUND})
+    events: list[Any] = []
+
+    update = await make_synthesize(llm)(
+        {"question": "q", "passages": [hit("p")]}, writer=events.append
+    )
+
+    assert events == []
+    assert update["draft"] == NOT_FOUND

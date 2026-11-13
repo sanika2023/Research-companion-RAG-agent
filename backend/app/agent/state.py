@@ -4,6 +4,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Annotated, Literal, Protocol, TypedDict
 
+from langgraph.types import StreamWriter
+
 from app.retrieval.hybrid import SearchHit
 
 QuestionKind = Literal["simple", "multi_step"]
@@ -37,6 +39,13 @@ class AgentState(TypedDict, total=False):
 class Node(Protocol):
     # LangGraph matches nodes by a parameter literally named `state`.
     def __call__(self, state: AgentState) -> Awaitable[AgentState]: ...
+
+
+class StreamingNode(Protocol):
+    # LangGraph injects a `writer` for sending custom stream events (e.g. answer tokens).
+    def __call__(
+        self, state: AgentState, *, writer: StreamWriter = ...
+    ) -> Awaitable[AgentState]: ...
 
 
 # Hybrid search already bound to the selected paper (and a DB session).

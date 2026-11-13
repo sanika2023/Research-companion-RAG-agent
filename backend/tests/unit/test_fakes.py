@@ -70,3 +70,14 @@ async def test_fake_llm_returns_validated_json_objects() -> None:
 async def test_fake_llm_json_without_canned_response_fails_loudly() -> None:
     with pytest.raises(ValueError):
         await FakeLLM().complete_json("unmatched prompt", Verdict)
+
+
+async def test_fake_llm_streams_its_reply_in_several_chunks() -> None:
+    llm = FakeLLM(responses={"question": "Two datasets were used [1]."})
+
+    chunks = [chunk async for chunk in llm.stream("the question", tier="answer")]
+
+    assert len(chunks) > 1
+    assert "".join(chunks) == "Two datasets were used [1]."
+    assert llm.prompts == ["the question"]
+    assert llm.tiers == ["answer"]

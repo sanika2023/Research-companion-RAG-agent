@@ -4,11 +4,13 @@ classify ─► [decompose if multi-step] ─► retrieve ─► synthesize ─�
                                               └─ nothing found ─► refuse
 """
 
+from collections.abc import AsyncIterator
 from typing import Any, Literal, cast
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from app.agent.events import AgentEvent, Finished, StepStarted, SubQuestions, Token
 from app.agent.nodes.check_citations import check_citations
 from app.agent.nodes.classify import make_classify
 from app.agent.nodes.decompose import make_decompose
@@ -20,6 +22,9 @@ from app.core.config import AgentSettings
 from app.llm.base import LLMClient
 
 Agent = CompiledStateGraph[AgentState, Any, AgentState, AgentState]
+
+# Steps worth showing the user; check_citations and refuse are instant bookkeeping.
+_VISIBLE_STEPS = {"classify", "decompose", "retrieve", "synthesize"}
 
 
 def build_agent(llm: LLMClient, search: Search, settings: AgentSettings) -> Agent:
@@ -52,3 +57,24 @@ def _after_retrieve(state: AgentState) -> Literal["synthesize", "refuse"]:
 
 async def answer_question(agent: Agent, question: str) -> AgentState:
     return cast(AgentState, await agent.ainvoke({"question": question, "flags": []}))
+
+
+async def stream_answer(agent: Agent, question: str) -> AsyncIterator[AgentEvent]:
+    """Run the agent, reporting each step as it starts and the answer as it is written."""
+    # "tasks" = node start/finish, "custom" = what nodes write (tokens), "values" = full state.
+    final: AgentState = {}
+    parts = agent.astream(
+        {"question": question, "flags": []}, stream_mode=["tasks", "custom", "values"]
+    )
+    # With several modes, each item is a (mode, data) pair; LangGraph's types don't say so.
+    async for mode, chunk in cast(AsyncIterator[tuple[str, dict[str, Any]]], parts):
+        if mode == "tasks" and "input" in chunk and chunk["name"] in _VISIBLE_STEPS:
+            yield StepStarted(chunk["name"])
+        elif mode == "tasks" and chunk["name"] == "decompose" and "result" in chunk:
+            if questions := chunk["result"]["sub_questions"]:  # empty when decomposition failed
+                yield SubQuestions(questions)
+        elif mode == "custom":
+            yield Token(chunk["token"])
+        elif mode == "values":
+            final = cast(AgentState, chunk)
+    yield Finished(final)

@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from typing import Literal, Protocol, TypeVar
 
 from pydantic import BaseModel
@@ -14,6 +15,10 @@ class LLMClient(Protocol):
 
     async def complete_json(self, prompt: str, schema: type[M], *, tier: Tier = "light") -> M:
         """Return the model's reply parsed and validated as `schema`."""
+        ...
+
+    def stream(self, prompt: str, *, tier: Tier = "answer") -> AsyncIterator[str]:
+        """Yield the reply as it is generated, in chunks of text."""
         ...
 
 
