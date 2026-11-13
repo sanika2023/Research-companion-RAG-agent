@@ -2,7 +2,9 @@ import asyncio
 import hashlib
 import math
 import random
+import re
 import sys
+from collections.abc import AsyncIterator
 
 import pytest
 
@@ -30,6 +32,11 @@ class FakeLLM:
         if reply is None:
             raise ValueError(f"FakeLLM has no JSON reply for prompt: {prompt[:80]!r}")
         return schema.model_validate_json(reply)
+
+    async def stream(self, prompt: str, *, tier: Tier = "answer") -> AsyncIterator[str]:
+        reply = await self.complete(prompt, tier=tier)
+        for word in re.findall(r"\S+\s*|\s+", reply):  # word-sized chunks, spaces kept
+            yield word
 
     def _record(self, prompt: str, tier: Tier) -> None:
         self.prompts.append(prompt)

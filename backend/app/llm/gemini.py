@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 import httpx
@@ -47,6 +47,29 @@ class GeminiClient:
         )
         return schema.model_validate_json(await self._generate(prompt, tier, config))
 
+    async def stream(self, prompt: str, *, tier: Tier = "answer") -> AsyncIterator[str]:
+        for attempt in range(self._attempts):
+            sent_text = False
+            try:
+                chunks = await self._sdk.aio.models.generate_content_stream(
+                    model=self._models[tier], contents=prompt
+                )
+                async for chunk in chunks:
+                    if chunk.text:  # the last chunk often has no text, only a finish reason
+                        sent_text = True
+                        yield chunk.text
+            except errors.APIError as exc:
+                # Once text has reached the caller, a retry would repeat it; give up instead.
+                if sent_text:
+                    raise LLMUnavailableError("Gemini stream broke off mid-answer") from exc
+                await self._backoff_or_raise(exc, attempt)
+                continue
+            except httpx.TimeoutException as exc:
+                raise LLMUnavailableError("Gemini request timed out") from exc
+            if not sent_text:
+                raise LLMUnavailableError("Gemini returned no text (possibly blocked)")
+            return
+
     async def _generate(self, prompt: str, tier: Tier, config: Any) -> str:
         for attempt in range(self._attempts):
             try:
@@ -54,13 +77,7 @@ class GeminiClient:
                     model=self._models[tier], contents=prompt, config=config
                 )
             except errors.APIError as exc:
-                if exc.code == _DEADLINE_EXCEEDED:
-                    raise LLMUnavailableError("Gemini request timed out") from exc
-                if exc.code not in _RETRYABLE:
-                    raise
-                if attempt == self._attempts - 1:
-                    raise LLMUnavailableError(f"Gemini unavailable: {exc}") from exc
-                await self._sleep(self._base_delay * 2**attempt)
+                await self._backoff_or_raise(exc, attempt)
                 continue
             except httpx.TimeoutException as exc:
                 # Not retried: a timed-out request has already used the whole time budget.
@@ -69,6 +86,16 @@ class GeminiClient:
                 raise LLMUnavailableError("Gemini returned no text (possibly blocked)")
             return reply.text
         raise AssertionError("unreachable")  # loop always returns or raises
+
+    async def _backoff_or_raise(self, exc: errors.APIError, attempt: int) -> None:
+        """Sleep before the next attempt if `exc` is transient; otherwise raise."""
+        if exc.code == _DEADLINE_EXCEEDED:
+            raise LLMUnavailableError("Gemini request timed out") from exc
+        if exc.code not in _RETRYABLE:
+            raise exc
+        if attempt == self._attempts - 1:
+            raise LLMUnavailableError(f"Gemini unavailable: {exc}") from exc
+        await self._sleep(self._base_delay * 2**attempt)
 
 
 def create_gemini_client(

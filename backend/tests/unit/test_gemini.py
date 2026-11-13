@@ -1,5 +1,6 @@
 """GeminiClient behaviour against a scripted stand-in for the google-genai SDK (no network)."""
 
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
@@ -17,11 +18,17 @@ class Reply:
     text: str | None
 
 
+# One streamed call: raise on open (Exception), or yield chunks in order; an Exception
+# inside the sequence is raised at that point in the stream.
+StreamOutcome = Exception | Sequence[str | None | Exception]
+
+
 class ScriptedModels:
     """Plays back outcomes in order: a string is a reply, an exception is raised."""
 
     def __init__(self, *outcomes: str | Exception | None) -> None:
         self.outcomes = list(outcomes)
+        self.stream_outcomes: list[StreamOutcome] = []
         self.calls: list[dict[str, Any]] = []
 
     async def generate_content(self, **kwargs: Any) -> Reply:
@@ -30,6 +37,29 @@ class ScriptedModels:
         if isinstance(outcome, Exception):
             raise outcome
         return Reply(outcome)
+
+    async def generate_content_stream(self, **kwargs: Any) -> AsyncIterator[Reply]:
+        self.calls.append(kwargs)
+        outcome = self.stream_outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return self._play(outcome)
+
+    async def _play(self, chunks: Sequence[str | None | Exception]) -> AsyncIterator[Reply]:
+        for chunk in chunks:
+            if isinstance(chunk, Exception):
+                raise chunk
+            yield Reply(chunk)
+
+
+def streaming(*outcomes: StreamOutcome) -> ScriptedModels:
+    models = ScriptedModels()
+    models.stream_outcomes = list(outcomes)
+    return models
+
+
+async def collect(chunks: AsyncIterator[str]) -> list[str]:
+    return [chunk async for chunk in chunks]
 
 
 class Sleeps:
@@ -138,3 +168,63 @@ async def test_empty_reply_is_an_error() -> None:
     # Gemini returns no text when a reply is blocked (e.g. safety filters).
     with pytest.raises(LLMUnavailableError):
         await make_client(ScriptedModels(None)).complete("hi")
+
+
+async def test_stream_yields_text_chunks_in_order_from_the_answer_model() -> None:
+    models = streaming(["The ", "answer", " [1]."])
+
+    assert await collect(make_client(models).stream("q")) == ["The ", "answer", " [1]."]
+    assert models.calls[0]["model"] == "answer-model"
+
+
+async def test_stream_skips_chunks_without_text() -> None:
+    # The final chunk often carries only the finish reason, no text.
+    models = streaming(["Hi", None, "!", None])
+
+    assert await collect(make_client(models).stream("q")) == ["Hi", "!"]
+
+
+async def test_stream_retries_when_opening_the_stream_fails() -> None:
+    models, sleeps = streaming(overloaded(), ["ok"]), Sleeps()
+
+    assert await collect(make_client(models, sleeps).stream("q")) == ["ok"]
+    assert sleeps.delays == [1.0]
+
+
+async def test_stream_retries_when_it_fails_before_the_first_chunk() -> None:
+    models = streaming([rate_limited()], ["ok"])
+
+    assert await collect(make_client(models).stream("q")) == ["ok"]
+
+
+async def test_stream_failing_after_text_was_sent_is_unavailable_and_not_retried() -> None:
+    # Retrying would repeat text the user has already seen.
+    models = streaming(["partial", overloaded()], ["never used"])
+    received: list[str] = []
+
+    with pytest.raises(LLMUnavailableError):
+        async for chunk in make_client(models).stream("q"):
+            received.append(chunk)
+    assert received == ["partial"]
+    assert len(models.calls) == 1
+
+
+async def test_stream_gives_up_after_the_last_attempt() -> None:
+    models = streaming(overloaded(), overloaded(), overloaded())
+
+    with pytest.raises(LLMUnavailableError):
+        await collect(make_client(models).stream("q"))
+    assert len(models.calls) == 3
+
+
+async def test_stream_timeout_is_unavailable_without_retrying() -> None:
+    models = streaming([httpx.ReadTimeout("slow")])
+
+    with pytest.raises(LLMUnavailableError):
+        await collect(make_client(models).stream("q"))
+    assert len(models.calls) == 1
+
+
+async def test_stream_with_no_text_at_all_is_an_error() -> None:
+    with pytest.raises(LLMUnavailableError):
+        await collect(make_client(streaming([None])).stream("q"))
