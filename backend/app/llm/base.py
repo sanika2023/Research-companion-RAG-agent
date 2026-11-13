@@ -1,8 +1,20 @@
-from typing import Protocol
+from typing import Literal, Protocol, TypeVar
+
+from pydantic import BaseModel
+
+# "answer" = the stronger model for final answers; "light" = the cheaper model for routing
+# steps and perturbation runs. Which concrete models these are comes from config.
+Tier = Literal["answer", "light"]
+
+M = TypeVar("M", bound=BaseModel)
 
 
 class LLMClient(Protocol):
-    async def complete(self, prompt: str) -> str: ...
+    async def complete(self, prompt: str, *, tier: Tier = "answer") -> str: ...
+
+    async def complete_json(self, prompt: str, schema: type[M], *, tier: Tier = "light") -> M:
+        """Return the model's reply parsed and validated as `schema`."""
+        ...
 
 
 class Embedder(Protocol):

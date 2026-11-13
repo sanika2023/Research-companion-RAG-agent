@@ -1,5 +1,8 @@
 import math
 
+import pytest
+from pydantic import BaseModel
+
 from tests.conftest import FakeEmbedder, FakeLLM
 
 
@@ -40,3 +43,30 @@ async def test_fake_llm_returns_canned_response_and_records_prompts() -> None:
 
 async def test_fake_llm_falls_back_to_default_answer() -> None:
     assert await FakeLLM().complete("anything") == "fake answer"
+
+
+class Verdict(BaseModel):
+    label: str
+
+
+async def test_fake_llm_records_which_model_tier_was_used() -> None:
+    llm = FakeLLM()
+
+    await llm.complete("a", tier="light")
+    await llm.complete("b")
+
+    assert llm.tiers == ["light", "answer"]
+
+
+async def test_fake_llm_returns_validated_json_objects() -> None:
+    llm = FakeLLM(responses={"classify": '{"label": "simple"}'})
+
+    verdict = await llm.complete_json("classify this", Verdict, tier="light")
+
+    assert verdict == Verdict(label="simple")
+    assert llm.tiers == ["light"]
+
+
+async def test_fake_llm_json_without_canned_response_fails_loudly() -> None:
+    with pytest.raises(ValueError):
+        await FakeLLM().complete_json("unmatched prompt", Verdict)

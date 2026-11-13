@@ -6,23 +6,37 @@ import sys
 
 import pytest
 
+from app.llm.base import M, Tier
+
 if sys.platform == "win32":  # psycopg's async mode can't use Windows' default Proactor loop
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 class FakeLLM:
-    """Returns a canned answer for the first matching keyword; records every prompt."""
+    """Returns a canned reply for the first keyword found in the prompt; records every call."""
 
     def __init__(self, responses: dict[str, str] | None = None) -> None:
         self.responses = responses or {}
         self.prompts: list[str] = []
+        self.tiers: list[Tier] = []
 
-    async def complete(self, prompt: str) -> str:
+    async def complete(self, prompt: str, *, tier: Tier = "answer") -> str:
+        self._record(prompt, tier)
+        return self._match(prompt) or "fake answer"
+
+    async def complete_json(self, prompt: str, schema: type[M], *, tier: Tier = "light") -> M:
+        self._record(prompt, tier)
+        reply = self._match(prompt)
+        if reply is None:
+            raise ValueError(f"FakeLLM has no JSON reply for prompt: {prompt[:80]!r}")
+        return schema.model_validate_json(reply)
+
+    def _record(self, prompt: str, tier: Tier) -> None:
         self.prompts.append(prompt)
-        for keyword, answer in self.responses.items():
-            if keyword in prompt:
-                return answer
-        return "fake answer"
+        self.tiers.append(tier)
+
+    def _match(self, prompt: str) -> str | None:
+        return next((reply for key, reply in self.responses.items() if key in prompt), None)
 
 
 class FakeEmbedder:
