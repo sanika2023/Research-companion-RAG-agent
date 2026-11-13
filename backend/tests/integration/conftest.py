@@ -11,11 +11,17 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.api.deps import get_embedder, get_ingest_settings, get_retrieval_settings
-from app.core.config import IngestSettings, RetrievalSettings
+from app.api.deps import (
+    get_agent_settings,
+    get_embedder,
+    get_ingest_settings,
+    get_llm,
+    get_retrieval_settings,
+)
+from app.core.config import AgentSettings, IngestSettings, RetrievalSettings
 from app.db.session import get_session
 from app.main import app
-from tests.conftest import FakeEmbedder
+from tests.conftest import FakeEmbedder, FakeLLM
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 ADMIN_URL = os.environ.get(
@@ -86,6 +92,10 @@ async def client(
     app.dependency_overrides[get_retrieval_settings] = lambda: RetrievalSettings(
         top_k=8, candidates=40, rrf_k=60
     )
+    app.dependency_overrides[get_agent_settings] = lambda: AgentSettings(
+        max_sub_questions=4, max_passages=10
+    )
+    app.dependency_overrides[get_llm] = FakeLLM  # never a real model in tests
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
