@@ -299,6 +299,60 @@ No answer triggered the `uncited` or `invalid_citations_removed` flags in this r
 
 ---
 
+## Phase 4 — Streaming answers (branch `feat/streaming`)
+
+**What was built** (see ADR 0005)
+- `POST /documents/{doc_id}/ask/stream` sends the agent's progress and answer as
+  **Server-Sent Events**: `status` when each step starts (classify, decompose, retrieve,
+  synthesize), `sub_questions` once the question is decomposed, `token` for each piece of
+  answer text, then `done` (the same citation-checked result as `/ask`) or `error`.
+- One agent graph serves both endpoints: the synthesize node streams from Gemini and writes
+  each piece to LangGraph's stream writer, which is a no-op when nobody is listening.
+- **The final event is authoritative.** Citations can only be verified once the whole answer
+  exists, so `done` carries the checked answer and the UI replaces the streamed text with it.
+- **The `NOT_FOUND` signal is never streamed:** a small filter holds back the start of the
+  answer while it could still be that code word, so a refusal shows only the friendly message.
+- **Retry only before the first chunk:** a failure before any text is retried as before; a
+  failure after text was sent ends the stream with an `error` event (retrying would repeat
+  text the user already saw).
+- A paper that doesn't exist is still a normal 404, because the check runs as a dependency
+  before the stream starts; after that, failures can only be reported as `error` events.
+- Built on FastAPI's built-in SSE support (keep-alive pings every 15 s); no new library.
+
+**Results** (Docker, Gemini Flash-Lite for both tiers)
+
+| Question (paper) | First progress | First answer text | Finished | Outcome |
+|---|---|---|---|---|
+| Which datasets were used, and why were they chosen? (MetaQA) | 1.2 s | 3.2 s | 3.5 s | 2 sub-questions shown at 2.6 s; 7 token events; 5 citations, no flags |
+| What is the capital of France? (MetaQA) | 0.4 s | — | 2.0 s | refused; `NOT_FOUND` held back, 0 token events |
+| Same datasets question with Flash 3.8 as answer model | 1.3 s | — | 63 s | Flash timed out; pings kept the connection open; ended with an `error` event |
+
+Gemini streams sentence-sized pieces (about 10–20 words), not single words. With Flash-Lite
+the whole answer takes about 0.5 s once it starts, so the clearest benefit for the user is the
+step-by-step progress during the first 3 s, not the typing effect.
+
+**Bugs and findings from testing**
+- **Timeouts were never caught (bug from Phase 3, found by the real check).** google-genai 3.x
+  makes requests with `httpx2`, whose `ReadTimeout` is not a subclass of `httpx`'s. The unit
+  tests simulated an `httpx` timeout the SDK never raises, so they passed while the real
+  timeout escaped: `/ask` would have returned 500 instead of 503, and the stream stopped
+  without an `error` event. Fixed by catching `httpx2` timeouts (tests corrected first). The
+  lesson for the report: a fake is only as good as its match to the real dependency.
+- The stream route now also turns any unexpected error into a generic `error` event (details
+  go to the server log), so a client never sees a stream simply stop.
+- LangGraph's stream writer raises when a node is called outside a graph; injecting it as a
+  `writer` parameter with a no-op default keeps nodes unit-testable on their own.
+
+**Limitations to discuss**
+- Streamed text is the raw model output; in the rare case a citation marker is removed by the
+  checker, the visible answer changes slightly when `done` arrives.
+- If the connection drops, the answer is lost: no resume (the `Last-Event-ID` mechanism is
+  not used) and no server-side storage of answers.
+- The browser's built-in `EventSource` only supports GET; the frontend must read the POST
+  stream with `fetch`.
+
+---
+
 ## Ideas for the evaluation chapter
 - Compare chunk sizes (e.g. 500 / 1,000 / 1,500) on retrieval quality for the eval queries.
 - Measure how often the correct page appears in the top-k retrieved chunks (page-level recall).
@@ -311,3 +365,4 @@ No answer triggered the `uncited` or `invalid_citations_removed` flags in this r
 - Answer quality: Flash vs. Flash-Lite as the answer model; citation support rate (share of
   cited passages that actually support the claim, judged by hand).
 - Refusal rate on out-of-scope questions vs. false refusals on answerable ones.
+- Latency: time to first progress, first token, and full answer (streaming vs. `/ask`).
