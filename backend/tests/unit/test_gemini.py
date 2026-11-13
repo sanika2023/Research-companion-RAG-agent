@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from google.genai import errors
 from pydantic import BaseModel
@@ -147,7 +147,7 @@ async def test_permanent_errors_are_not_retried() -> None:
 
 
 async def test_timeout_is_reported_as_unavailable_without_retrying() -> None:
-    models = ScriptedModels(httpx.ReadTimeout("slow"))
+    models = ScriptedModels(httpx2.ReadTimeout("slow"))
 
     with pytest.raises(LLMUnavailableError):
         await make_client(models).complete("hi")
@@ -218,7 +218,7 @@ async def test_stream_gives_up_after_the_last_attempt() -> None:
 
 
 async def test_stream_timeout_is_unavailable_without_retrying() -> None:
-    models = streaming([httpx.ReadTimeout("slow")])
+    models = streaming([httpx2.ReadTimeout("slow")])
 
     with pytest.raises(LLMUnavailableError):
         await collect(make_client(models).stream("q"))

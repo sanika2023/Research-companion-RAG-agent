@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
-import httpx
+import httpx2
 from google import genai
 from google.genai import errors, types
 
@@ -64,7 +64,7 @@ class GeminiClient:
                     raise LLMUnavailableError("Gemini stream broke off mid-answer") from exc
                 await self._backoff_or_raise(exc, attempt)
                 continue
-            except httpx.TimeoutException as exc:
+            except httpx2.TimeoutException as exc:
                 raise LLMUnavailableError("Gemini request timed out") from exc
             if not sent_text:
                 raise LLMUnavailableError("Gemini returned no text (possibly blocked)")
@@ -79,7 +79,7 @@ class GeminiClient:
             except errors.APIError as exc:
                 await self._backoff_or_raise(exc, attempt)
                 continue
-            except httpx.TimeoutException as exc:
+            except httpx2.TimeoutException as exc:
                 # Not retried: a timed-out request has already used the whole time budget.
                 raise LLMUnavailableError("Gemini request timed out") from exc
             if not reply.text:
