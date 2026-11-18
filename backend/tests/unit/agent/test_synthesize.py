@@ -56,3 +56,11 @@ async def test_synthesize_never_streams_the_not_found_signal() -> None:
 
     assert events == []
     assert update["draft"] == NOT_FOUND
+
+
+async def test_synthesize_can_use_the_light_model_for_cheap_reruns() -> None:
+    llm = FakeLLM()
+
+    await make_synthesize(llm, tier="light")({"question": "q", "passages": [hit("p")]})
+
+    assert llm.tiers == ["light"]

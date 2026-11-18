@@ -52,6 +52,21 @@ async def test_ask_returns_an_answer_with_page_citations(client: AsyncClient) ->
     assert body["flags"] == []
 
 
+async def test_ask_lists_every_passage_the_model_saw_for_later_inspection(
+    client: AsyncClient,
+) -> None:
+    doc_id = await upload(client)
+    use_llm(FakeLLM({"Classify the question": SIMPLE, "numbered passages": "TruthfulQA [1]."}))
+
+    body = (
+        await client.post(f"/documents/{doc_id}/ask", json={"question": "Which datasets?"})
+    ).json()
+
+    # Both pages are retrieved, but only the cited one becomes a citation.
+    assert len(body["passage_ids"]) == 2
+    assert body["passage_ids"][0] == body["citations"][0]["chunk_id"]
+
+
 async def test_ask_in_unknown_paper_is_a_404(client: AsyncClient) -> None:
     response = await client.post(f"/documents/{uuid.uuid4()}/ask", json={"question": "q"})
 

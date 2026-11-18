@@ -60,6 +60,20 @@ It sends Server-Sent Events: `status` (each step as it starts), `sub_questions`,
 (answer text), then `done` (the checked answer with citations, same as `/ask`) or `error`.
 Lines starting with `:` are keep-alive pings.
 
+## Check an answer's hallucination risk
+The perturbation inspector re-asks the question with one controlled change at a time and
+measures how far the answer moves. Send back the question, the `answer`, and the
+`passage_ids` from an `/ask` response (plus `sub_questions`, if any):
+```bash
+curl -X POST http://localhost:8000/documents/<doc_id>/diagnose   -H "Content-Type: application/json"   -d '{"question": "...", "answer": "...", "passage_ids": ["...", "..."]}'
+```
+`uncertainty` is 0 (stable) to 1 (unstable). `signals` gives a breakdown for each change:
+`paraphrase` (reworded question), `reorder` (passages reversed), `distractor` (an unrelated
+passage of the paper added), and `drop_cited` (the most-cited passage removed; shown but not
+scored by default). Each has its `risk`, embedding `similarity`, `claim_agreement` with the
+original's `claims`, and the perturbed answer itself. It makes about six Flash-Lite calls,
+typically 5-20 seconds.
+
 ## Search a paper
 Searches are scoped to one paper (hybrid keyword + vector search, fused with RRF):
 ```bash

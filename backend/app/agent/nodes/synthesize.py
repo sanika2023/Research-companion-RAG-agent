@@ -5,14 +5,14 @@ from langgraph.types import StreamWriter
 from app.agent import prompts
 from app.agent.state import AgentState, StreamingNode
 from app.agent.token_filter import NotFoundFilter
-from app.llm.base import LLMClient
+from app.llm.base import LLMClient, Tier
 
 
 def _ignore(_: Any) -> None:
     """Default writer for direct calls; inside a graph LangGraph injects the real one."""
 
 
-def make_synthesize(llm: LLMClient) -> StreamingNode:
+def make_synthesize(llm: LLMClient, *, tier: Tier = "answer") -> StreamingNode:
     async def synthesize(state: AgentState, *, writer: StreamWriter = _ignore) -> AgentState:
         prompt = prompts.SYNTHESIZE.format(
             passages=prompts.format_passages(state["passages"]),
@@ -22,7 +22,7 @@ def make_synthesize(llm: LLMClient) -> StreamingNode:
         )
         parts: list[str] = []
         hold_back = NotFoundFilter()
-        async for chunk in llm.stream(prompt, tier="answer"):
+        async for chunk in llm.stream(prompt, tier=tier):
             parts.append(chunk)
             if text := hold_back.feed(chunk):
                 writer({"token": text})

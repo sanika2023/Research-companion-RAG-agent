@@ -13,12 +13,18 @@ from sqlalchemy.pool import NullPool
 
 from app.api.deps import (
     get_agent_settings,
+    get_diagnostics_settings,
     get_embedder,
     get_ingest_settings,
     get_llm,
     get_retrieval_settings,
 )
-from app.core.config import AgentSettings, IngestSettings, RetrievalSettings
+from app.core.config import (
+    AgentSettings,
+    DiagnosticsSettings,
+    IngestSettings,
+    RetrievalSettings,
+)
 from app.db.session import get_session
 from app.main import app
 from tests.conftest import FakeEmbedder, FakeLLM
@@ -94,6 +100,9 @@ async def client(
     )
     app.dependency_overrides[get_agent_settings] = lambda: AgentSettings(
         max_sub_questions=4, max_passages=10
+    )
+    app.dependency_overrides[get_diagnostics_settings] = lambda: DiagnosticsSettings(
+        similarity_floor=0.7, drop_cited_weight=0.0, concurrency=2
     )
     app.dependency_overrides[get_llm] = FakeLLM  # never a real model in tests
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

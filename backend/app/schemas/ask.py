@@ -26,3 +26,5 @@ class AskResponse(BaseModel):
     refused: bool
     sub_questions: list[str]
     flags: list[str]  # e.g. "uncited", "invalid_citations_removed"
+    # Every passage shown to the model, in prompt order; lets /diagnose re-run the answer.
+    passage_ids: list[uuid.UUID]

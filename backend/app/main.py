@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import ask, documents, health
+from app.api.routes import ask, diagnose, documents, health
 from app.core.config import CorsSettings
 
 app = FastAPI(title="Paper RAG")
@@ -15,3 +15,4 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(documents.router)
 app.include_router(ask.router)
+app.include_router(diagnose.router)

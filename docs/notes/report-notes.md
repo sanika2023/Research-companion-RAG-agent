@@ -404,6 +404,50 @@ step-by-step progress during the first 3 s, not the typing effect.
 - **Deployment risk:** PDFs live on the backend's disk; free hosts may wipe it on restart, and
   then the viewer cannot load a paper even though questions still work.
 
+## Phase 6 — Perturbation inspector (branch `feat/perturbation-inspector`)
+
+**What was built** (see ADR 0007)
+- `POST /documents/{doc_id}/diagnose` takes an answer from `/ask` and re-runs the answer step
+  four times, changing one input each time: a **paraphrased** question, the passages in
+  **reverse order**, an unrelated **distractor** passage from the same paper added, and the
+  **most-cited passage dropped**. It compares each new answer with the original in two ways
+  (embedding similarity and claim-by-claim agreement judged by Flash-Lite) and combines them
+  into a 0-1 **uncertainty score** with a per-perturbation breakdown.
+- `/ask` and the streaming `done` event now include `passage_ids`, the exact passages the
+  model saw, so the inspector can rebuild the prompt.
+- Pure, separately tested modules: `perturb.py` (the changes), `compare.py` (similarity,
+  claim agreement), `score.py` (combining signals); `inspector.py` orchestrates them.
+- 55 new backend tests (210 total), all with fake models except the database tests.
+
+**Results** (real Gemini, Flash-Lite for answers and inspection, MetaQA paper)
+
+| Question | Uncertainty | Time | What the breakdown showed |
+|---|---|---|---|
+| Which datasets were used to evaluate MetaQA? | 0.16 | 3.8 s | All claims agreed in every run; the score came only from embedding similarity (paraphrase 0.44 because of list formatting). Drop-cited risk 0.88: the datasets are listed in several passages. |
+| What are the main limitations of MetaQA? | 0.06 | 7.9 s | Stable under every change; dropping the main passage lost one of three claims. |
+| What temperature setting was used for the LLM calls? | 0.15 | 18.1 s | The distractor run **contradicted** a claim (it said SelfCheckGPT ran with temperature 0.5 by default, where the original said no explicit temperature). Dropping the main passage removed 3 of 4 claims, so drop-cited risk was low (0.21): the answer depended on its evidence. |
+
+**Bugs and findings from testing**
+- The two signals behave differently: claim agreement was 1.0 for every run of the datasets
+  question, but embedding similarity fell to 0.44 just because one answer used a numbered
+  list with bold names. Embedding similarity is sensitive to formatting, not only meaning.
+- The drop-cited signal behaved as the ADR predicted: high risk when a fact is repeated across
+  passages (datasets), low when the answer relies on one passage (temperature). This is why it
+  is shown but not scored by default.
+- Gemini's structured output accepted the judge's schema (a list of `agrees` / `contradicts` /
+  `missing` verdicts per answer) without changes.
+
+**Limitations to discuss**
+- The score measures **consistency, not correctness**: an answer that is wrong in the same way
+  every time scores as stable. It complements citations; it does not verify them.
+- The judge is itself an LLM (Flash-Lite) and can mis-split claims or misjudge agreement.
+- The similarity floor (0.7) and equal weights are untuned defaults; they need calibrating on
+  the evaluation set.
+- Perturbed answers use Flash-Lite even when the original came from Flash, so some
+  disagreement may come from the model difference.
+- Each inspection costs about six model calls, which matters on the free tier's daily quota.
+- Only the answer step is perturbed; retrieval errors (wrong passages found) are not detected.
+
 ---
 
 ## Ideas for the evaluation chapter
@@ -421,3 +465,8 @@ step-by-step progress during the first 3 s, not the typing effect.
 - Latency: time to first progress, first token, and full answer (streaming vs. `/ask`).
 - Highlight precision: share of clicked citations whose highlighted passage visibly supports
   the claim (a small user-facing audit of citation quality).
+- Inspector calibration: does uncertainty separate correct from incorrect answers (AUROC on the
+  hand-labelled eval answers)? Tune the similarity floor and weights; test whether drop-cited
+  adds signal.
+- Inspector ablation: claim agreement only vs. embedding similarity only vs. both.
+- Inspection cost: model calls, time, and tokens per answer.
