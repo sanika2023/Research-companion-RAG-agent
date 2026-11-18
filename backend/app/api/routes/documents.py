@@ -1,16 +1,18 @@
+import asyncio
 import uuid
 from dataclasses import asdict
 from pathlib import PurePath
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_embedder, get_ingest_settings, get_retrieval_settings
 from app.core.config import IngestSettings, RetrievalSettings
 from app.db.session import get_session
 from app.ingestion.parse import InvalidPDFError
-from app.ingestion.pipeline import NoTextError, ingest_pdf
+from app.ingestion.pipeline import NoTextError, ingest_pdf, pdf_path
 from app.ingestion.store import get_document, list_documents
 from app.llm.base import Embedder
 from app.retrieval.hybrid import hybrid_search
@@ -72,6 +74,23 @@ async def get_documents(session: Session) -> list[DocumentSummary]:
         )
         for doc, chunk_count in await list_documents(session)
     ]
+
+
+@router.get("/{doc_id}/file", response_class=FileResponse)
+async def get_document_file(
+    doc_id: uuid.UUID,
+    session: Session,
+    settings: Annotated[IngestSettings, Depends(get_ingest_settings)],
+) -> FileResponse:
+    """The original PDF, for the viewer."""
+    doc = await get_document(session, doc_id)
+    path = pdf_path(settings.upload_dir, doc_id)
+    # The file can be gone while the database row remains (e.g. a host's disk was reset).
+    if doc is None or not await asyncio.to_thread(path.is_file):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
+    return FileResponse(
+        path, media_type="application/pdf", filename=doc.filename, content_disposition_type="inline"
+    )
 
 
 @router.post("/{doc_id}/search")

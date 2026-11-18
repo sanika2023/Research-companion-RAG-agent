@@ -90,6 +90,19 @@ class AgentSettings:
     max_passages: int
 
 
+class CorsSettings(BaseSettings):
+    """Read separately so the app can be built without the database URL or API key."""
+
+    model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
+
+    # Comma-separated browser origins allowed to call the API: the frontend's URL(s).
+    cors_origins: str = "http://localhost:3000"
+
+    @property
+    def origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]  # fields are populated from the environment

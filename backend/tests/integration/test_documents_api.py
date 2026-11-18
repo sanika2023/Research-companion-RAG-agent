@@ -1,3 +1,6 @@
+import uuid
+from pathlib import Path
+
 import pytest
 from httpx import AsyncClient, Response
 
@@ -59,3 +62,30 @@ async def test_upload_over_the_size_limit_is_a_413(client: AsyncClient) -> None:
 
     assert response.status_code == 413
     assert (await client.get("/documents")).json() == []
+
+
+async def test_uploaded_pdf_is_served_back_for_the_viewer(client: AsyncClient) -> None:
+    doc_id = (await upload(client, PDF, "paper.pdf")).json()["doc_id"]
+
+    response = await client.get(f"/documents/{doc_id}/file")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content == PDF
+    assert response.headers["content-disposition"].startswith("inline")
+
+
+async def test_file_of_unknown_paper_is_a_404(client: AsyncClient) -> None:
+    response = await client.get(f"/documents/{uuid.uuid4()}/file")
+
+    assert response.status_code == 404
+
+
+async def test_file_missing_from_storage_is_a_404(client: AsyncClient, tmp_path: Path) -> None:
+    # e.g. a host whose disk was wiped on restart while the database kept the paper
+    doc_id = (await upload(client, PDF)).json()["doc_id"]
+    (tmp_path / f"{doc_id}.pdf").unlink()
+
+    response = await client.get(f"/documents/{doc_id}/file")
+
+    assert response.status_code == 404
