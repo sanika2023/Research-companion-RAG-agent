@@ -12,10 +12,15 @@ from app.agent.events import AgentEvent, Finished, StepStarted, SubQuestions, To
 from app.agent.graph import Agent
 from app.agent.service import ask, ask_stream, paper_agent
 from app.agent.state import AgentState
-from app.api.deps import get_agent_settings, get_embedder, get_llm, get_retrieval_settings
+from app.api.deps import (
+    existing_paper,
+    get_agent_settings,
+    get_embedder,
+    get_llm,
+    get_retrieval_settings,
+)
 from app.core.config import AgentSettings, RetrievalSettings
 from app.db.session import get_session
-from app.ingestion.store import get_document
 from app.llm.base import Embedder, LLMClient
 from app.llm.gemini import LLMUnavailableError
 from app.schemas.ask import AskRequest, AskResponse, CitationOut
@@ -25,15 +30,6 @@ log = logging.getLogger(__name__)
 
 UNAVAILABLE = "The language model is busy or unavailable right now. Please try again shortly."
 FAILED = "Something went wrong while answering. Please try again."
-
-
-async def existing_paper(
-    doc_id: uuid.UUID, session: Annotated[AsyncSession, Depends(get_session)]
-) -> uuid.UUID:
-    # A dependency, so a streaming endpoint can still answer 404 before the stream starts.
-    if await get_document(session, doc_id) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
-    return doc_id
 
 
 async def agent_for_paper(
@@ -110,4 +106,5 @@ def _response(doc_id: uuid.UUID, question: str, result: AgentState) -> AskRespon
         refused=result["refused"],
         sub_questions=result.get("sub_questions", []),
         flags=result["flags"],
+        passage_ids=[p.chunk_id for p in result.get("passages", [])],
     )
