@@ -6,6 +6,8 @@ from typing import Self
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.diagnostics.score import Perturbation
+
 
 class Settings(BaseSettings):
     # Repo-root .env locally; real env vars (Docker/hosting) override it.
@@ -35,6 +37,15 @@ class Settings(BaseSettings):
     agent_max_sub_questions: int = Field(default=4, gt=0)
     # Passages shown to the answer model; more = more context but a longer, costlier prompt.
     agent_max_passages: int = Field(default=10, gt=0)
+
+    # Cosine similarity at which two answers count as unrelated (bge puts most text pairs
+    # above ~0.7); tune on the evaluation set.
+    diagnostics_similarity_floor: float = Field(default=0.7, ge=0, lt=1)
+    # 0 = shown in the breakdown but left out of the score, until evaluation shows whether
+    # it predicts wrong answers (see ADR 0007).
+    diagnostics_drop_cited_weight: float = Field(default=0.0, ge=0)
+    # Model calls in flight at once per inspection; low to stay under free-tier rate limits.
+    diagnostics_concurrency: int = Field(default=2, gt=0)
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -66,6 +77,14 @@ class Settings(BaseSettings):
             max_sub_questions=self.agent_max_sub_questions, max_passages=self.agent_max_passages
         )
 
+    @property
+    def diagnostics(self) -> "DiagnosticsSettings":
+        return DiagnosticsSettings(
+            similarity_floor=self.diagnostics_similarity_floor,
+            drop_cited_weight=self.diagnostics_drop_cited_weight,
+            concurrency=self.diagnostics_concurrency,
+        )
+
 
 @dataclass(frozen=True)
 class IngestSettings:
@@ -88,6 +107,22 @@ class RetrievalSettings:
 class AgentSettings:
     max_sub_questions: int
     max_passages: int
+
+
+@dataclass(frozen=True)
+class DiagnosticsSettings:
+    similarity_floor: float
+    drop_cited_weight: float
+    concurrency: int
+
+    @property
+    def weights(self) -> dict[Perturbation, float]:
+        return {
+            "paraphrase": 1.0,
+            "reorder": 1.0,
+            "distractor": 1.0,
+            "drop_cited": self.drop_cited_weight,
+        }
 
 
 class CorsSettings(BaseSettings):

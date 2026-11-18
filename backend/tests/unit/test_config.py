@@ -94,3 +94,22 @@ def test_agent_defaults(env: pytest.MonkeyPatch) -> None:
 
     assert settings.llm_timeout_s == 60
     assert (settings.agent.max_sub_questions, settings.agent.max_passages) == (4, 10)
+
+
+def test_drop_cited_is_reported_but_not_scored_by_default(env: pytest.MonkeyPatch) -> None:
+    weights = load_settings().diagnostics.weights
+
+    assert weights == {"paraphrase": 1.0, "reorder": 1.0, "distractor": 1.0, "drop_cited": 0.0}
+
+
+def test_drop_cited_weight_is_configurable(env: pytest.MonkeyPatch) -> None:
+    env.setenv("DIAGNOSTICS_DROP_CITED_WEIGHT", "0.5")
+
+    assert load_settings().diagnostics.weights["drop_cited"] == 0.5
+
+
+def test_similarity_floor_must_leave_room_below_one(env: pytest.MonkeyPatch) -> None:
+    env.setenv("DIAGNOSTICS_SIMILARITY_FLOOR", "1")
+
+    with pytest.raises(ValidationError):
+        load_settings()
