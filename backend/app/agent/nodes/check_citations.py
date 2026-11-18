@@ -6,7 +6,7 @@ from app.agent.state import AgentState, Citation
 NOT_FOUND_MESSAGE = "I couldn't find the answer to this question in the selected paper."
 
 # "[2]" or "[1, 3]", with any whitespace before it (so a removed marker leaves no gap).
-_MARKER = re.compile(r"(\s*)\[(\d+(?:\s*,\s*\d+)*)\]")
+CITATION_MARKER = re.compile(r"(\s*)\[(\d+(?:\s*,\s*\d+)*)\]")
 
 
 def check_citations(state: AgentState) -> AgentState:
@@ -27,7 +27,7 @@ def check_citations(state: AgentState) -> AgentState:
         cited.extend(n for n in valid if n not in cited)
         return f"{match.group(1)}[{', '.join(map(str, valid))}]" if valid else ""
 
-    answer = _MARKER.sub(keep_valid, draft)
+    answer = CITATION_MARKER.sub(keep_valid, draft)
     citations = [_citation(n, state) for n in cited]
     flags = (["invalid_citations_removed"] if removed else []) + ([] if cited else ["uncited"])
     return {"answer": answer, "citations": citations, "refused": False, "flags": flags}
