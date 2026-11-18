@@ -24,6 +24,7 @@ cp .env.example .env   # then fill in LLM_API_KEY
 ```bash
 docker compose up --build
 ```
+- **The app: http://localhost:3000** (upload a paper, open it, ask questions)
 - API health: http://localhost:8000/health
 - Interactive API docs: http://localhost:8000/docs
 
@@ -68,6 +69,25 @@ curl -X POST http://localhost:8000/documents/<doc_id>/search \
 ```
 Each hit has the page, text, bounding boxes, and its `keyword_rank` / `vector_rank`.
 
+## Using the app
+1. On http://localhost:3000, upload a PDF (processing takes about 20 s) or pick an uploaded paper.
+2. The paper opens with the PDF on the left and the chat on the right.
+3. Ask a question. You see each step (understanding, searching, writing), then the answer streams in.
+4. Click a citation number, or a source under the answer, to jump to that page with the cited
+   passage highlighted. "Show passage" displays the quoted text.
+
+## Run the frontend locally (hot reload)
+Needs Node.js 20.18+ (24 LTS recommended) and the backend on port 8000.
+```bash
+cd frontend
+npm install
+npm run dev                      # http://localhost:3000
+```
+The browser calls the API directly, at `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
+This value is compiled into the browser code at **build time**: after changing it, rebuild
+(`docker compose build frontend`). The backend only accepts browser requests from the origins in
+`CORS_ORIGINS` (default `http://localhost:3000`).
+
 ## Run the backend locally (auto-reload)
 ```bash
 docker compose up -d db          # database only
@@ -82,6 +102,10 @@ uv run uvicorn app.main:app --reload
 cd backend
 uv run pytest tests/unit         # fast, no database needed
 uv run pytest                    # everything; integration tests need `docker compose up -d db`
+
+cd frontend
+npm test                         # Vitest + React Testing Library
+npm run typecheck && npm run lint
 ```
 
 ## Stopping
@@ -92,6 +116,11 @@ docker compose down -v           # stop and DELETE the database and uploads volu
 Press `Ctrl+C` to stop a locally running `uvicorn`.
 
 ## Troubleshooting
+- **The app says it can't reach the backend:** check http://localhost:8000/health. If the
+  backend runs but the browser console shows a CORS error, add the page's origin to
+  `CORS_ORIGINS` in `.env` and restart the backend.
+- **The PDF pane says it couldn't load the PDF** although questions work: the original file is
+  missing from storage (e.g. the `uploads` volume was deleted); upload the paper again.
 - **`docker` not recognized:** restart VS Code / your terminal after installing Docker Desktop.
 - **`invalid peer certificate: UnknownIssuer` from uv:** add `--system-certs` (e.g.
   `uv run --system-certs pytest`) so uv trusts the Windows certificate store.

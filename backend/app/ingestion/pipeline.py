@@ -57,6 +57,11 @@ def _parse_and_chunk(data: bytes, size: int, overlap: int) -> tuple[int, list[Ch
     return parsed.page_count, chunk_pages(parsed.pages, size=size, overlap=overlap)
 
 
+def pdf_path(upload_dir: Path, doc_id: uuid.UUID) -> Path:
+    """Where a paper's original PDF is kept (the only place that decides this)."""
+    return upload_dir / f"{doc_id}.pdf"
+
+
 def _save_pdf(upload_dir: Path, doc_id: uuid.UUID, data: bytes) -> None:
     upload_dir.mkdir(parents=True, exist_ok=True)
-    (upload_dir / f"{doc_id}.pdf").write_bytes(data)
+    pdf_path(upload_dir, doc_id).write_bytes(data)

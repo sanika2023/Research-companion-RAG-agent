@@ -353,6 +353,59 @@ step-by-step progress during the first 3 s, not the typing effect.
 
 ---
 
+## Phase 5 — Frontend: dual-pane reader (branch `feat/frontend`)
+
+**What was built** (see ADR 0006)
+- A Next.js app: a home page to upload or pick a paper, and a paper page with the PDF on the
+  left and the chat on the right. `docker compose up` now starts all three services
+  (database, API, web app on port 3000).
+- The chat shows each agent step as it happens ("Searching the paper…"), the sub-questions,
+  the answer as it streams, then the citation-checked answer. Citation numbers become buttons;
+  clicking one **scrolls the PDF to the page and highlights the cited passage** using the
+  bounding boxes stored at ingestion. A Sources list under each answer gives the page of each
+  citation and can expand to show the quoted passage. Refusals appear as a notice, errors as an
+  alert, and audit flags (`uncited`, `invalid_citations_removed`) as warnings.
+- Backend additions: `GET /documents/{doc_id}/file` serves the original PDF (404 if the paper
+  or its file is missing), and CORS allows the frontend's origin (`CORS_ORIGINS`).
+- 55 frontend tests (Vitest + React Testing Library): the SSE parser, the streaming client, the
+  chat reducer, highlight geometry, and the components; plus 7 new backend tests.
+
+**Results** (real browser, Docker stack, real Gemini)
+- Home page lists the three sample papers; opening one renders the PDF.
+- Datasets question on the MetaQA paper (Flash-Lite answer model): progress and sub-questions
+  shown first, then a formatted answer with citation buttons [5], [8], [9] and a Sources list
+  (pages 9, 10, 9). Clicking [8] scrolled to page 10 and highlighted the HotpotQA and FreshQA
+  paragraphs and the dataset table, which are exactly the passage the claim relies on.
+- "What is the capital of France?" showed the refusal notice.
+- With Flash 3.8 as the answer model, the answer timed out after 60 s and the chat showed
+  "The language model is busy…", then accepted a new question.
+- No errors or warnings in the browser console.
+
+**Bugs and findings from testing**
+- **Line endings split across network chunks:** the first SSE parser turned a Windows line
+  ending (`\r\n`) split
+  between two chunks into a false event boundary. Found by reasoning about edge cases, pinned
+  with a failing test, then fixed.
+- Next 16 prerenders pages at build time; a page that reads the URL's paper id must sit in a
+  `<Suspense>` boundary. The production build caught this (tests and type checks passed).
+- Tooling versions had to match Node 20.18 (Vitest 4, jsdom 26); Node 20 is end-of-life, and
+  the Docker image uses Node 24.
+
+**Limitations to discuss**
+- **Highlights include running headers/footers** when they were merged into the chunk (visible
+  on page 10: the page footer is highlighted). This makes the Phase 1 cleaning limitation
+  visible to users.
+- The highlight marks the whole chunk (about 1,000 characters), not the specific sentence that
+  supports the claim.
+- All pages render at once; very long PDFs (100+ pages) would be slow to open.
+- LaTeX in answers shows as raw text (no math rendering).
+- Questions are single-turn; the chat history is only on screen and is lost on reload.
+- No accounts: anyone who can reach the app sees all uploaded papers.
+- **Deployment risk:** PDFs live on the backend's disk; free hosts may wipe it on restart, and
+  then the viewer cannot load a paper even though questions still work.
+
+---
+
 ## Ideas for the evaluation chapter
 - Compare chunk sizes (e.g. 500 / 1,000 / 1,500) on retrieval quality for the eval queries.
 - Measure how often the correct page appears in the top-k retrieved chunks (page-level recall).
@@ -366,3 +419,5 @@ step-by-step progress during the first 3 s, not the typing effect.
   cited passages that actually support the claim, judged by hand).
 - Refusal rate on out-of-scope questions vs. false refusals on answerable ones.
 - Latency: time to first progress, first token, and full answer (streaming vs. `/ask`).
+- Highlight precision: share of clicked citations whose highlighted passage visibly supports
+  the claim (a small user-facing audit of citation quality).
