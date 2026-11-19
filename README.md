@@ -89,6 +89,10 @@ Each hit has the page, text, bounding boxes, and its `keyword_rank` / `vector_ra
 3. Ask a question. You see each step (understanding, searching, writing), then the answer streams in.
 4. Click a citation number, or a source under the answer, to jump to that page with the cited
    passage highlighted. "Show passage" displays the quoted text.
+5. To check an answer, click **Check this answer** under it. The question is re-asked with small
+   changes (5-20 s, about six Flash-Lite calls), then a badge shows the hallucination risk
+   (Low < 0.2, Medium < 0.4, High). Click the badge for the breakdown: each check's risk, the
+   answer it produced, and the claims compared. The score measures consistency, not correctness.
 
 ## Run the frontend locally (hot reload)
 Needs Node.js 20.18+ (24 LTS recommended) and the backend on port 8000.
