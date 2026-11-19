@@ -26,6 +26,37 @@ export type AskResponse = {
   refused: boolean;
   sub_questions: string[];
   flags: string[];
+  passage_ids: string[]; // every passage the model saw, in order; sent back to /diagnose
+};
+
+export type Perturbation = "paraphrase" | "reorder" | "distractor" | "drop_cited";
+
+export type DiagnoseRequest = {
+  question: string;
+  answer: string;
+  passage_ids: string[];
+  sub_questions: string[];
+};
+
+export type Signal = {
+  kind: Perturbation;
+  status: "ok" | "skipped" | "failed";
+  weight: number; // share of the overall score; 0 = shown but not scored
+  risk: number | null; // 0 = behaved as a reliable answer should, 1 = did not
+  similarity: number | null; // embedding similarity to the original, rescaled 0-1
+  claim_agreement: number | null; // fraction of the original's claims this run agrees with
+  contradictions: number | null;
+  question: string | null; // asked in this run; reworded for paraphrase
+  answer: string | null; // the perturbed answer
+  refused: boolean;
+};
+
+export type DiagnoseResponse = {
+  doc_id: string;
+  uncertainty: number | null; // 0-1; null when no scored check could be measured
+  signals: Signal[];
+  claims: string[];
+  flags: string[]; // e.g. "judge_failed"
 };
 
 export type Step = "classify" | "decompose" | "retrieve" | "synthesize";

@@ -448,6 +448,50 @@ step-by-step progress during the first 3 s, not the typing effect.
 - Each inspection costs about six model calls, which matters on the free tier's daily quota.
 - Only the answer step is perturbed; retrieval errors (wrong passages found) are not detected.
 
+## Phase 7 — Diagnostics drawer (branch `feat/diagnostics-drawer`)
+
+**What was built** (see ADR 0008)
+- A **"Check this answer"** button under each finished answer (not for refusals). Checks run
+  only on request, to save the free tier's model calls for answering and evaluation.
+- While the check runs, the answer shows "Checking this answer…"; afterwards a coloured
+  **badge** shows the risk ("Hallucination risk: Low · 0.14"; Low < 0.2, Medium < 0.4, High).
+  Errors show the server's message with a "Try again" button.
+- Clicking the badge opens a **drawer** over the chat (the PDF stays visible): the overall
+  score with a bar, a plain-language note that it measures consistency, not correctness, one
+  row per check (risk, similarity, share of claims agreed, contradictions, skipped/failed
+  reasons, "not counted" for drop-cited) with the perturbed answer under "Show answer", and the
+  list of claims compared.
+- Keyboard and screen-reader support: a labelled dialog, focus moved into it, Escape closes it,
+  and focus returns to the badge.
+- 33 new frontend tests (88 total): the score levels and notes, the API call, the reducer, and
+  the full button → badge → drawer flow with a fake inspector.
+
+**Results** (real browser, local backend, real Gemini Flash-Lite, MetaQA paper)
+- "What temperature setting was used for the LLM calls?": the answer appeared with citations
+  and the button; the check scored **Medium · 0.28** on one run and **Low · 0.14** on the next.
+  In the second run the unrelated-passage check again **contradicted one claim**, and removing
+  the main source cut claim agreement to 33% (the answer depended on its source).
+- Escape closed the drawer and returned focus to the badge; no console errors or warnings.
+
+**Bugs and findings from testing**
+- **The score varies between runs of the same check** (0.28 vs 0.14): the model's answers
+  themselves vary, and the score has only four data points. A single check is a rough signal.
+- The network used on Nov 18 intercepted HTTPS: Docker could not install npm packages, and the
+  backend container could not reach Gemini (certificate errors). Running the backend directly on
+  Windows (which trusts the interceptor's certificate) worked. Deployment will not have this
+  problem, but it is a hazard for the `docker compose up` install on such networks.
+- That outage also showed a gap outside this phase: a **connection failure to Gemini is not
+  treated as "model unavailable"**, so the chat shows the generic "Something went wrong"
+  instead of the clearer busy/unavailable message. **Fixed** with two tests first (red, then
+  green): the Gemini client now reports any `httpx2.NetworkError` (connection, certificate,
+  read/write failures) as unavailable, without retrying, for both normal and streamed calls.
+
+**Limitations to discuss**
+- Check results live only in the page; reloading loses them (the conversation too).
+- The Low/Medium/High cut-offs are uncalibrated placeholders.
+- Run-to-run variance means the level can flip between Low and Medium for the same answer.
+- Users must choose to check; unchecked answers carry no risk signal.
+
 ---
 
 ## Ideas for the evaluation chapter
@@ -470,3 +514,5 @@ step-by-step progress during the first 3 s, not the typing effect.
   adds signal.
 - Inspector ablation: claim agreement only vs. embedding similarity only vs. both.
 - Inspection cost: model calls, time, and tokens per answer.
+- Score stability: run the check several times per answer and report the spread (the same
+  question scored 0.28 and 0.14 in two runs).

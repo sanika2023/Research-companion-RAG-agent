@@ -1,4 +1,11 @@
-import type { AskResponse, Step, StreamEvent } from "@/types/api";
+import type { AskResponse, DiagnoseResponse, Step, StreamEvent } from "@/types/api";
+
+/** The optional "Check this answer" run for a finished answer. */
+export type Check =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "done"; report: DiagnoseResponse }
+  | { status: "error"; message: string };
 
 export type Turn = {
   id: string;
@@ -9,6 +16,7 @@ export type Turn = {
   streamedText: string; // raw tokens; replaced by response.answer once done
   response: AskResponse | null;
   error: string | null;
+  check: Check;
 };
 
 export type ChatState = { turns: Turn[] };
@@ -16,7 +24,8 @@ export type ChatState = { turns: Turn[] };
 export type ChatAction =
   | { type: "asked"; id: string; question: string }
   | { type: "event"; id: string; event: StreamEvent }
-  | { type: "stopped"; id: string };
+  | { type: "stopped"; id: string }
+  | { type: "check"; id: string; check: Check };
 
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   if (action.type === "asked") {
@@ -29,8 +38,18 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       streamedText: "",
       response: null,
       error: null,
+      check: { status: "idle" },
     };
     return { turns: [...state.turns, turn] };
+  }
+  if (action.type === "check") {
+    // Checks happen after the answer is final, so they bypass the finished-turn rule below.
+    const { id, check } = action;
+    return {
+      turns: state.turns.map((turn) =>
+        turn.id === id && turn.phase === "done" ? { ...turn, check } : turn,
+      ),
+    };
   }
   return {
     turns: state.turns.map((turn) =>
@@ -40,7 +59,10 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   };
 }
 
-function applyAction(turn: Turn, action: Exclude<ChatAction, { type: "asked" }>): Turn {
+function applyAction(
+  turn: Turn,
+  action: Extract<ChatAction, { type: "event" } | { type: "stopped" }>,
+): Turn {
   if (action.type === "stopped") return { ...turn, phase: "stopped" };
   const event = action.event;
   switch (event.type) {

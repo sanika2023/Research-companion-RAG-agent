@@ -1,17 +1,32 @@
 "use client";
 
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-import { TurnView } from "@/components/chat/TurnView";
-import { type AskFn, useAsk } from "@/hooks/useAsk";
+import { TurnView, checkBadgeId } from "@/components/chat/TurnView";
+import { DiagnosticsDrawer } from "@/components/diagnostics/DiagnosticsDrawer";
+import { type AskFn, type DiagnoseFn, useAsk } from "@/hooks/useAsk";
+import { diagnoseAnswer } from "@/lib/api";
 import { askStream } from "@/lib/ask";
 import { isBusy } from "@/lib/chat";
 import type { Citation } from "@/types/api";
 
-type Props = { docId: string; ask?: AskFn; onCite: (citation: Citation) => void };
+type Props = {
+  docId: string;
+  ask?: AskFn;
+  diagnose?: DiagnoseFn;
+  onCite: (citation: Citation) => void;
+};
 
-export function Chat({ docId, ask = askStream, onCite }: Props) {
-  const { state, submit, stop } = useAsk(docId, ask);
+export function Chat({ docId, ask = askStream, diagnose = diagnoseAnswer, onCite }: Props) {
+  const { state, submit, stop, check } = useAsk(docId, ask, diagnose);
+  const [openCheck, setOpenCheck] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const busy = isBusy(state);
   const bottom = useRef<HTMLDivElement>(null);
@@ -20,6 +35,13 @@ export function Chat({ docId, ask = askStream, onCite }: Props) {
   useEffect(() => {
     bottom.current?.scrollIntoView?.({ block: "end" });
   }, [state.turns.length, lastTurn?.streamedText, lastTurn?.phase]);
+
+  const checked = state.turns.find((t) => t.id === openCheck);
+  const closeCheck = useCallback(() => {
+    // Back to the badge that opened the drawer, so keyboard users keep their place.
+    if (openCheck) document.getElementById(checkBadgeId(openCheck))?.focus();
+    setOpenCheck(null);
+  }, [openCheck]);
 
   function send(event?: FormEvent) {
     event?.preventDefault();
@@ -35,7 +57,7 @@ export function Chat({ docId, ask = askStream, onCite }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <div className="flex-1 overflow-y-auto p-4">
         {state.turns.length === 0 ? (
           <p className="mt-8 text-center text-sm text-stone-500">
@@ -45,7 +67,13 @@ export function Chat({ docId, ask = askStream, onCite }: Props) {
         ) : (
           <ol className="space-y-6">
             {state.turns.map((turn) => (
-              <TurnView key={turn.id} turn={turn} onCite={onCite} />
+              <TurnView
+                key={turn.id}
+                turn={turn}
+                onCite={onCite}
+                onCheck={() => void check(turn)}
+                onOpenCheck={() => setOpenCheck(turn.id)}
+              />
             ))}
           </ol>
         )}
@@ -82,6 +110,14 @@ export function Chat({ docId, ask = askStream, onCite }: Props) {
           )}
         </div>
       </form>
+
+      {checked?.check.status === "done" && (
+        <DiagnosticsDrawer
+          question={checked.question}
+          report={checked.check.report}
+          onClose={closeCheck}
+        />
+      )}
     </div>
   );
 }

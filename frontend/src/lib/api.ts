@@ -1,5 +1,10 @@
 import { API_URL } from "@/lib/config";
-import type { DocumentSummary, DocumentUploaded } from "@/types/api";
+import type {
+  DiagnoseRequest,
+  DiagnoseResponse,
+  DocumentSummary,
+  DocumentUploaded,
+} from "@/types/api";
 
 export type Fetch = typeof fetch;
 
@@ -27,6 +32,21 @@ export async function uploadDocument(
   const form = new FormData();
   form.append("file", file);
   return parse(await fetchFn(`${API_URL}/documents`, { method: "POST", body: form }));
+}
+
+/** Re-ask with controlled changes and score the answer's stability (slow: several model calls). */
+export async function diagnoseAnswer(
+  docId: string,
+  request: DiagnoseRequest,
+  { signal, fetchFn = browserFetch }: { signal?: AbortSignal; fetchFn?: Fetch } = {},
+): Promise<DiagnoseResponse> {
+  const response = await fetchFn(`${API_URL}/documents/${docId}/diagnose`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  });
+  return parse(response);
 }
 
 export function pdfUrl(docId: string): string {

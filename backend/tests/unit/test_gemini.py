@@ -154,6 +154,14 @@ async def test_timeout_is_reported_as_unavailable_without_retrying() -> None:
     assert len(models.calls) == 1
 
 
+async def test_network_failure_is_reported_as_unavailable() -> None:
+    # e.g. no internet, or a TLS-intercepting proxy failing certificate checks
+    models = ScriptedModels(httpx2.ConnectError("certificate verify failed"))
+
+    with pytest.raises(LLMUnavailableError):
+        await make_client(models).complete("hi")
+
+
 async def test_server_side_deadline_is_a_timeout_and_not_retried() -> None:
     # The SDK sends our timeout as a deadline; Google answers 504 when it passes.
     deadline = errors.ServerError(504, {"error": {"message": "Deadline expired", "status": 504}})
@@ -223,6 +231,13 @@ async def test_stream_timeout_is_unavailable_without_retrying() -> None:
     with pytest.raises(LLMUnavailableError):
         await collect(make_client(models).stream("q"))
     assert len(models.calls) == 1
+
+
+async def test_stream_network_failure_is_reported_as_unavailable() -> None:
+    models = streaming([httpx2.ConnectError("certificate verify failed")])
+
+    with pytest.raises(LLMUnavailableError):
+        await collect(make_client(models).stream("q"))
 
 
 async def test_stream_with_no_text_at_all_is_an_error() -> None:

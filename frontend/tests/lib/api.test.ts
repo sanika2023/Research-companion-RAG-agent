@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, listDocuments, pdfUrl, uploadDocument } from "@/lib/api";
+import { ApiError, diagnoseAnswer, listDocuments, pdfUrl, uploadDocument } from "@/lib/api";
+import type { DiagnoseRequest } from "@/types/api";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -38,5 +39,33 @@ describe("api", () => {
 
   it("builds the URL of a paper's PDF", () => {
     expect(pdfUrl("d1")).toBe("http://localhost:8000/documents/d1/file");
+  });
+
+  it("sends an answer to be checked as JSON and returns the report", async () => {
+    const report = { doc_id: "d1", uncertainty: 0.1, signals: [], claims: [], flags: [] };
+    const fetchFn = vi.fn(async () => json(report));
+    const request: DiagnoseRequest = {
+      question: "q",
+      answer: "a [1].",
+      passage_ids: ["c1"],
+      sub_questions: [],
+    };
+    const signal = new AbortController().signal;
+
+    expect(await diagnoseAnswer("d1", request, { signal, fetchFn })).toEqual(report);
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/documents/d1/diagnose");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual(request);
+    expect(init.signal).toBe(signal);
+  });
+
+  it("raises the server's explanation when a check fails", async () => {
+    const fetchFn = async () => json({ detail: "The language model is busy." }, 503);
+    const request = { question: "q", answer: "a", passage_ids: ["c1"], sub_questions: [] };
+
+    await expect(diagnoseAnswer("d1", request, { fetchFn })).rejects.toEqual(
+      new ApiError(503, "The language model is busy."),
+    );
   });
 });

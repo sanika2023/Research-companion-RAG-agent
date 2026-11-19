@@ -1,6 +1,8 @@
 import { AnswerText } from "@/components/chat/AnswerText";
 import { Sources } from "@/components/citations/Sources";
+import { CheckAnswer } from "@/components/diagnostics/CheckAnswer";
 import { type Turn, visibleAnswer } from "@/lib/chat";
+import { canCheck } from "@/lib/diagnostics";
 import type { Citation, Step } from "@/types/api";
 
 const STEP_LABELS: Record<Step, string> = {
@@ -16,9 +18,17 @@ const FLAG_NOTES: Record<string, string> = {
   invalid_citations_removed: "Some citations pointed to nothing and were removed.",
 };
 
-type Props = { turn: Turn; onCite: (citation: Citation) => void };
+type Props = {
+  turn: Turn;
+  onCite: (citation: Citation) => void;
+  onCheck: () => void;
+  onOpenCheck: () => void;
+};
 
-export function TurnView({ turn, onCite }: Props) {
+/** Id of a turn's risk badge, so focus can return to it when the drawer closes. */
+export const checkBadgeId = (turnId: string) => `check-${turnId}`;
+
+export function TurnView({ turn, onCite, onCheck, onOpenCheck }: Props) {
   const text = visibleAnswer(turn);
   const response = turn.response;
   const citeByNumber = (number: number) => {
@@ -81,6 +91,15 @@ export function TurnView({ turn, onCite }: Props) {
         {turn.phase === "stopped" && <p className="mt-1 text-xs text-stone-500">Stopped.</p>}
 
         {response && <Sources citations={response.citations} onCite={onCite} />}
+
+        {turn.phase === "done" && response && canCheck(response) && (
+          <CheckAnswer
+            check={turn.check}
+            badgeId={checkBadgeId(turn.id)}
+            onCheck={onCheck}
+            onOpen={onOpenCheck}
+          />
+        )}
       </div>
     </li>
   );
