@@ -66,6 +66,8 @@ class GeminiClient:
                 continue
             except httpx2.TimeoutException as exc:
                 raise LLMUnavailableError("Gemini request timed out") from exc
+            except httpx2.NetworkError as exc:
+                raise LLMUnavailableError(f"Could not reach Gemini: {exc}") from exc
             if not sent_text:
                 raise LLMUnavailableError("Gemini returned no text (possibly blocked)")
             return
@@ -82,6 +84,9 @@ class GeminiClient:
             except httpx2.TimeoutException as exc:
                 # Not retried: a timed-out request has already used the whole time budget.
                 raise LLMUnavailableError("Gemini request timed out") from exc
+            except httpx2.NetworkError as exc:
+                # Not retried: certificate or DNS failures don't fix themselves within seconds.
+                raise LLMUnavailableError(f"Could not reach Gemini: {exc}") from exc
             if not reply.text:
                 raise LLMUnavailableError("Gemini returned no text (possibly blocked)")
             return reply.text
