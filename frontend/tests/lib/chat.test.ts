@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type ChatState, chatReducer, isBusy, visibleAnswer } from "@/lib/chat";
-import type { AskResponse, StreamEvent } from "@/types/api";
+import type { AskResponse, DiagnoseResponse, StreamEvent } from "@/types/api";
 
 const RESPONSE: AskResponse = {
   doc_id: "d1",
@@ -11,6 +11,7 @@ const RESPONSE: AskResponse = {
   refused: false,
   sub_questions: [],
   flags: [],
+  passage_ids: ["c1"],
 };
 
 function run(...events: StreamEvent[]): ChatState {
@@ -99,5 +100,33 @@ describe("chatReducer", () => {
     expect(isBusy(run())).toBe(true);
     expect(isBusy(run({ type: "done", response: RESPONSE }))).toBe(false);
     expect(isBusy({ turns: [] })).toBe(false);
+  });
+
+  it("starts each turn unchecked", () => {
+    expect(onlyTurn(run()).check).toEqual({ status: "idle" });
+  });
+
+  it("records the answer check of a finished turn, even though the turn is final", () => {
+    const report: DiagnoseResponse = {
+      doc_id: "d1",
+      uncertainty: 0.1,
+      signals: [],
+      claims: [],
+      flags: [],
+    };
+    let state = run({ type: "done", response: RESPONSE });
+
+    state = chatReducer(state, { type: "check", id: "t1", check: { status: "checking" } });
+    expect(onlyTurn(state).check).toEqual({ status: "checking" });
+
+    state = chatReducer(state, { type: "check", id: "t1", check: { status: "done", report } });
+    expect(onlyTurn(state).check).toEqual({ status: "done", report });
+    expect(onlyTurn(state).response).toEqual(RESPONSE);
+  });
+
+  it("ignores a check for an answer that is not finished", () => {
+    const state = chatReducer(run(), { type: "check", id: "t1", check: { status: "checking" } });
+
+    expect(onlyTurn(state).check).toEqual({ status: "idle" });
   });
 });

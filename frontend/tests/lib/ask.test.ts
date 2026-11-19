@@ -12,6 +12,7 @@ const DONE: AskResponse = {
   refused: false,
   sub_questions: [],
   flags: [],
+  passage_ids: ["c1"],
 };
 
 function streamOf(...chunks: string[]): Response {
