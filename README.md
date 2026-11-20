@@ -1,4 +1,4 @@
-# Paper RAG
+# Research Companion RAG Agent
 
 Auditable research companion for academic papers: hybrid-search RAG with page-linked citations and a perturbation-based hallucination inspector.
 
