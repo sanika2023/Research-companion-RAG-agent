@@ -8,6 +8,79 @@ This uses a RAG system and references items in the given ground truth.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    subgraph Browser["Frontend · Next.js"]
+        PDF["PDF viewer"]
+        Chat["Chat pane"]
+        Drawer["Diagnostics drawer"]
+    end
+
+    subgraph API["Backend · FastAPI"]
+        Ingest["Ingestion<br/>parse → chunk → embed"]
+        Agent["LangGraph agent"]
+        Retrieval["Hybrid retrieval<br/>keyword + vector → RRF"]
+        Inspector["Perturbation inspector"]
+        LLM["LLM client"]
+        Embed["Embedder<br/>bge-small, local"]
+    end
+
+    DB[("PostgreSQL + pgvector<br/>papers, chunks, embeddings")]
+    Gemini(["Gemini API"])
+
+    Chat -- "upload PDF" --> Ingest
+    Chat -- "ask (SSE stream)" --> Agent
+    Drawer -- "check this answer" --> Inspector
+    PDF -- "fetch PDF" --> API
+
+    Ingest --> Embed
+    Ingest --> DB
+    Agent --> Retrieval
+    Retrieval --> Embed
+    Retrieval --> DB
+    Agent --> LLM
+    Inspector --> LLM
+    Inspector --> Embed
+    LLM --> Gemini
+```
+
+**Uploading a paper**
+
+1. PyMuPDF extracts the text with page numbers and positions.
+2. The text is split into chunks, embedded locally with `BAAI/bge-small-en-v1.5`, and stored in Postgres.
+3. Each chunk keeps its page and position so citations can point back to it.
+
+**Asking a question** (`POST /documents/{id}/ask/stream`)
+
+```
+classify ─► [decompose if multi-step] ─► retrieve ─► synthesize ─► check citations
+                                             └─ nothing found ─► refuse
+```
+
+1. **Classify:** a small model decides whether the question is simple or multi-step. Multi-step questions are **decomposed** into sub-questions.
+2. **Retrieve:** each (sub-)question runs a hybrid search *within the selected paper only*. Postgres full-text search and exact vector search are fused with Reciprocal Rank Fusion.
+3. **Synthesize:** the model answers only from the retrieved passages and cites them as `[n]`. If nothing is found, the agent **refuses** instead of answering from memory.
+4. **Check citations:** invalid citations are removed and uncited answers are flagged.
+5. **Stream:** status updates and answer tokens are sent to the chat as Server-Sent Events. Clicking a citation jumps the PDF viewer to its page.
+
+**Checking an answer** (`POST /documents/{id}/diagnose`, on request)
+
+1. The question is re-run four ways: reworded, passages reordered, an unrelated passage added, and the most-cited passage removed.
+2. Each new answer is compared with the original using embedding similarity and a claim-by-claim judge call.
+3. The results are combined into a 0–1 hallucination-risk score. The drawer shows the overall score and one row per check.
+
+| Folder | Role |
+|---|---|
+| `backend/app/api/routes/` | HTTP endpoints only |
+| `backend/app/ingestion/` | PDF parsing, chunking, storage |
+| `backend/app/retrieval/` | Keyword, vector, and fused hybrid search |
+| `backend/app/agent/` | LangGraph graph, one file per node in `nodes/` |
+| `backend/app/diagnostics/` | Perturbations, answer comparison, risk score |
+| `backend/app/llm/` | Gemini and embedding clients (the only code that calls a model) |
+| `frontend/src/components/` | PDF viewer, chat, citations, diagnostics drawer |
+| `docs/decisions/` | Design decisions (ADRs) behind each part |
+
+All model calls use the Gemini API: Flash for answers, and Flash-Lite for routing and the answer checks. The design reasoning is recorded in [`docs/decisions/`](docs/decisions/), from 0001 (chunk schema) to 0008 (diagnostics drawer).
 
 ## Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running)
