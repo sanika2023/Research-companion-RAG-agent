@@ -494,7 +494,60 @@ step-by-step progress during the first 3 s, not the typing effect.
 
 ---
 
-## Ideas for the evaluation chapter
+## Phase 8 — Evaluation (branch `feat/evaluation`, in progress)
+
+**What was built so far**
+- A question set of 29 questions over the four sample papers
+  (`eval/queries/queries.jsonl`). It has 24 answerable questions (facts, table numbers,
+  multi-step, formulas) and 5 the paper cannot answer, including one off-topic question
+  ("What is the capital of France?") that tests answering from memory. Each question has
+  expected pages and a reference answer.
+- Each question is stored twice: phrased as a user who has only skimmed the paper (the main
+  wording), and in the paper's own terms (`paper_wording`).
+- Pure, tested metric functions in `backend/app/evaluation/metrics.py`: hit@k, MRR, refusal
+  counts, AUROC for risk-score separation, and spread of repeated scores.
+- A retrieval comparison script (`python -m app.evaluation.retrieval_run`). It needs no LLM
+  calls and runs keyword, vector, and hybrid search with the agent's real search functions.
+
+**Retrieval results** (24 answerable questions, a hit = passage from an expected page)
+
+| Wording | Method | Hit@1 | Hit@3 | Hit@5 | Hit@10 | MRR |
+|---|---|---|---|---|---|---|
+| user | keyword | 0.50 | 0.62 | 0.75 | 0.92 | 0.61 |
+| user | vector | 0.46 | 0.75 | 0.83 | 0.92 | 0.62 |
+| user | hybrid | 0.50 | 0.75 | 0.79 | 0.83 | 0.64 |
+| paper | keyword | 0.54 | 0.71 | 0.88 | 1.00 | 0.67 |
+| paper | vector | 0.54 | 0.71 | 0.83 | 0.88 | 0.64 |
+| paper | hybrid | 0.50 | 0.75 | 0.92 | 0.92 | 0.63 |
+
+**Findings**
+- **Wording matters more for keyword search.** In the paper's terms keyword search finds every
+  answer page in the top 10; phrased as a user would ask, it drops to 0.92 and loses most at
+  Hit@3 (0.71 → 0.62). Vector search is barely affected. The first draft of the questions used
+  the paper's wording, which made keyword search look best; questions written by someone
+  who has read the paper are biased toward keyword search.
+- **No method clearly wins.** Hybrid has the best MRR with user wording but the worst Hit@10.
+  With 24 questions one question moves a score by about 0.04, so the differences are small.
+- **RRF penalises passages found by only one method.** With user wording, hybrid misses three
+  answer pages that one method ranked highly or both ranked moderately (bb-01: vector rank 3;
+  meta-01; meta-06). RRF with k = 60 rewards agreement between the methods, so passages ranked
+  moderately by both push these out of the top 10. A smaller k or weighting the methods could
+  help; not tried (it would need its own held-out questions to avoid tuning to this set).
+- **Formula pages are hard to retrieve by meaning.** For meta-02 in the paper's terms ("How
+  does MetaQA compute the hallucination score?"), only keyword search finds the scoring-formula
+  page (rank 4); vector and hybrid miss it. After PDF extraction that page is mostly scattered
+  symbols, so its embedding carries little meaning. The user wording ("How is the final
+  hallucination score calculated?") happens to match the page's prose, and all three find it
+  first.
+- vggt-05 (limitations, page 10) is missed by every method with user wording ("struggle with"
+  shares no words or close meaning with "limitations… does not support fisheye").
+
+**Changes to the ground truth (disclosed)**
+- After the first run, meta-01's expected pages were widened from [7] to [3, 6, 7]: page 6
+  introduces the "two general types" and page 3's figure names both. This was an error in the
+  question set, not a retrieval change. When the questions were rewritten in user wording,
+  vggt-03 became a general camera-pose question, so page 12 (the IMC appendix table) was added.
+
 - Compare chunk sizes (e.g. 500 / 1,000 / 1,500) on retrieval quality for the eval queries.
 - Measure how often the correct page appears in the top-k retrieved chunks (page-level recall).
 - Include formula-heavy questions to quantify the math-extraction limitation.
