@@ -1,0 +1,448 @@
+﻿id,paper,type,answerable,question,reference,answer,refused,cited_passages,correctness,citations_support,notes
+bb-01,black-box.pdf,fact,yes,"What datasets did they test on, and what kind of data does each one represent?","VQAv2 (in-distribution), OK-VQA (out-of-distribution), and AdVQA (adversarial).","Based on the provided passages, the datasets tested on and the kind of data each represents are:
+
+* **VQAv2:** Represents in-distribution data [3, 4, 7].
+* **OKVQA:** Represents out-of-distribution (OOD) data [3, 4, 6].
+* **AdVQA:** Represents adversarial visual data [2, 3, 4].",no,"[3] p6: 0.00 0.02 0.04 0.06 0.08 confidence
+dataset = AdVQA
+0.00 0.02 0.04 0.06 0.08 confidence
+dataset = VQAv2
+0.00 0.02 0.04 0.06 0.08 confidence
+dataset = OKVQA
+Consistency
+0.0 1.0 2.0 3.0 4.0 5.0
+Figure 5. The distribution of confidence scores of 𝑓𝐵𝐵at each level of consistency. While higher levels of consistency have a larger proportion of high confidence answers, they also retain a large number of low confidence answers, showing that consistency defines a different ordering over questions than confidence scores alone. BLIP is used as the black-box model 𝑓𝐵𝐵.
+0 1 2 3 4 5 Consistent Responses over 5 Rephrasings
+dataset
+AdVQA VQAv2 OKVQA
+Figure 6. The percentage of each dataset at a given level of consistency. On a well-understood, in-distribution dataset (VQAv2), a large percentage of the questions are at a high consistency level.
+3. What is the distribution of consistency across different datasets? In Fig. 7 we plot the accuracy of the answers when 𝑓𝐵𝐵 is BLIP by how consistent each
+
+[4] p3: 0.00 0.01 0.02 0.03 0.04 0.05 0.06 confidence
+dataset = OKVQA
+0.00 0.01 0.02 0.03 0.04 0.05 0.06 confidence
+dataset = VQAv2
+0.00 0.01 0.02 0.03 0.04 0.05 0.06 confidence
+dataset = AdVQA
+Answer Correct
+False True
+Figure 2. For out of distribution (OKVQA) and adversarial visual (AdVQA) questions, confidence scores alone do not work well to separate right from wrong answers — many correct answers are low confidence for OOD data, and many wrong answers are high confidence for adversarial data. Note: Displayed confidence scores are raw. See Appendix for discussion on calibration.
+0 20 40 60 80 100
+Percent Rejected Due To Uncertainty %
+AdVQA VQAv2 OKVQA
+in-distribution
+out-of-distribution
+adversarial
+Figure 3. Selective VQA performance of a VLM (BLIP) on three datasets: adversarial (AdVQA), out-of-distribution (OKVQA), and in-distribution (VQAv2). On OOD and adversarial questions, the model has a harder time identifying which questions it should abstain from.
+tions are low confidence and
+
+[7] p2: and in-distribution (VQAv2) datasets. For the in-distribution dataset (VQAv2), the model is quickly able to identify which questions it is likely to know the answer to, achieving nearly perfect accuracy by rejecting the most uncertain 40% of the dataset. However, for out-ofdistribution and adversarial datasets, the model has a harder time – after rejecting 50% of the questions, the model still has an error rate of ≈40%. The reason for this is evident in Fig. 2, where we plot the distribution of confidence scores for incorrect and correct answers for OOD, in-distribution, and adversarial visual questions. For in-distribution visual questions, the confidence distribution is bimodal, and incorrect and correct answers are clearly separated by confidence. For OOD visual questions, many correctly answered ques-
+
+[6] p6: 0.5
+0.6
+0.7
+0.8
+0.9
+dataset
+VQAv2 AdVQA OKVQA
+Figure 7. The accuracy of the answers of a VQA model (BLIP) plotted as a function of how consistent each answer was over up to 5 rephrasings of an original question.
+clearly shows that consistency and confidence are not equivalent, and define different orderings on a set of questions and answers. Put another way, low confidence on a question does not preclude high consistency on a question, and similarly, high confidence on a question does not guarantee the model will be highly consistent on rephrasings of a question. Finally, plot the percentage of each dataset at a given level of consistency in Fig. 6. The in-distribution dataset, VQAv2, has the highest proportion of questions with 5 agreeing neighbors, with all other consistency levels making up the rest of the dataset. For the out-of-distribution dataset (OKVQA), a substantial proportion of questions (≈40% ) have five agreeing neighbors, with the rest of the dataset shared roughly
+
+[2] p6: is the distribution of consistency across different datasets? In Fig. 7 we plot the accuracy of the answers when 𝑓𝐵𝐵 is BLIP by how consistent each answer was over up to 5 rephrasings of an original question. We find that consistency over rephrasings is correlated with accuracy across all three datasets, through the correlation is weakest on adversarial data. Increased consistency on the rephrasings of a question implies lower risk on the original answer to the original question. Next, we examine how the distribution of model confidence varies across consistency levels in Fig. 5. Across all datasets, slices of a dataset at higher consistency levels also have a greater proportion of high-confidence answers, but retain a substantial proportion of low confidence answers. This
+0 1 2 3 4 5 Consistent Responses over 5 Rephrasings
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+dataset
+VQAv2 AdVQA OKVQA
+Figure 7. The accuracy of the answers of a VQA model (BLIP) plotted as a function of how consistent each",correct,yes,
+bb-02,black-box.pdf,number,yes,How big are the evaluation datasets?,"OK-VQA 5k, AdVQA 10k, and VQAv2 40k questions.",I couldn't find the answer to this question in the selected paper.,yes,,wrong,n/a,
+bb-03,black-box.pdf,number,yes,What training settings did they use for the model that generates the rephrased questions?,"AdamW with weight decay 0.05, learning rate decayed linearly to 0 from 2e-5, 10 epochs, batch size 64, image size 480 x 480.","To train the visual question generation (VQG) model, they initialized it from a BLIP checkpoint pretrained on 129 million image-text pairs and trained it to maximize $p(a|q, v)$ using a standard language modeling loss [3].",no,"[3] p4: should lead to the predicted answer 𝑎. We assume the rephrasings generated by 𝑓𝑉𝑄𝐺are good enough, 𝑓𝐵𝐵 should be consistent on the rephrasings, and inconsistency indicates a problem with 𝑓𝐵𝐵. In practice, each 𝑞′ is not guaranteed to be a rephrasing (see Fig. 4) due to the probabilistic nature of the sampling process and because the VQG model is not perfect. The VQG model can be trained by following any procedure that results in a model approximating 𝑝(𝑎|𝑞, 𝑣) that is an autoregressive model capable of text generation conditional on multimodal image-text input. The training procedure of the VQG model is an implementation detail we discuss in Sec. 3.5.
+3.5. Implementation Details
+We initialize the VQG model 𝑓𝑉𝑄𝐺from a BLIP checkpoint pretrained on 129m image-text pairs, and train it to maximize 𝑝(𝑎|𝑞, 𝑣) using a standard language modeling loss. Specifically, we use
+LVQG = −
+𝑁 ∑︁
+𝑛=1
+log 𝑃𝜃(𝑦𝑛| 𝑦<𝑛, 𝑎, 𝑣) (1)
+where 𝑦1,𝑌2, . . . 𝑦𝑛are the tokens of a question 𝑞and 𝑎, 𝑣 are the",partial,yes,
+bb-04,black-box.pdf,fact,yes,"Which models did they treat as the black box, and how many parameters do they have?","ALBEF and BLIP (about 200M parameters each) and BLIP-2, whose version is based on the 11B-parameter FLAN-T5.","Based on the provided passages:
+
+* **Models treated as the black box:** ALBEF, BLIP, and BLIP-2 [2].
+* **Parameter counts:** 
+  * ALBEF and BLIP have approximately 200 million ($\approx$200m) parameters each [2].
+  * The version of BLIP-2 used is based on the 11B parameter FLAN-T5 model [2].",no,"[2] p5: 𝑐÷ 𝑘
+4. Experiments
+We conduct a series of experiments probing predictive uncertainty in a black-box visual question answering setting over two large vision-language models and three datasets. The primary task we use to probe predictive uncertainty is selective visual question answering, which we give a detailed description of in Sec. 3.5. Futher qualitative examples and results can be found in the appendix.
+4.1. Experimental Setup
+Black-box Models The experimental setup requires a blackbox VQA model 𝑓𝐵𝐵and a rephrasing generator 𝑓𝑉𝑄𝐺. We
+describe the training of the rephrasing generator 𝑓𝑉𝑄𝐺in Sec. 3.5. We choose ALBEF [16], BLIP [17], and BLIP- 2[18] as our black-box models. ALBEF and BLIP have ≈200m parameters, while the version of BLIP-2 we use is based on the 11B parameter FLAN-T5 [5] model. AL- BEF has been pretrained on 14m image-text pairs, while BLIP has been pretrained on over 100m image-text pairs, and BLIP-2 is aligned on 4M images. We use the official checkpoints provided",correct,yes,
+bb-05,black-box.pdf,multi_step,yes,"Why isn't the model's own confidence good enough to spot wrong answers, and what do they do instead?","On OOD data many correct answers have low confidence, and on adversarial data many wrong answers have high confidence, so confidence does not separate right from wrong. The method generates rephrasings with a small visual question generation model and measures how often the black-box answer stays the same; higher consistency correlates with accuracy and lower risk.","- **Why model confidence is insufficient:** For out-of-distribution and adversarial visual questions, model confidence scores fail to effectively separate right from wrong answers because many correct answers have low confidence (on OOD data) and many incorrect answers have high confidence (on adversarial data) [3, 5]. 
+- **What they do instead:** They assess the consistency of the model's answers over dynamically generated rephrasings of the original question (using a VQG model) to judge reliability and identify incorrect answers [2, 4, 7].",no,"[3] p3: On OOD and adversarial questions, the model has a harder time identifying which questions it should abstain from.
+tions are low confidence and difficult to distinguish from incorrectly answered questions. A similar situation occurs for adversarial visual questions, in which many questions are incorrectly answered with high confidence.
+Although the strategy of using model confidence alone to detect questions the model cannot answer is effective for in-distribution visual questions, this strategy fails on out-ofdistribution and adversarial visual questions.
+3. Method
+3.1. Task Definition and Background
+Given an image 𝑣and question 𝑞, the task of selective visual question answering is to decide whether a model 𝑓𝑉𝑄𝐴(𝑣, 𝑞) should predict an answer 𝑎, or abstain from making a prediction. A typical solution to this problem is to train a selection function 𝑔(·) that produces an abstention score 𝑝rej ∈[0, 1]. The simplest selection function would be to take the rejection probability 𝑝rej =
+
+[5] p3: 0.00 0.01 0.02 0.03 0.04 0.05 0.06 confidence
+dataset = OKVQA
+0.00 0.01 0.02 0.03 0.04 0.05 0.06 confidence
+dataset = VQAv2
+0.00 0.01 0.02 0.03 0.04 0.05 0.06 confidence
+dataset = AdVQA
+Answer Correct
+False True
+Figure 2. For out of distribution (OKVQA) and adversarial visual (AdVQA) questions, confidence scores alone do not work well to separate right from wrong answers — many correct answers are low confidence for OOD data, and many wrong answers are high confidence for adversarial data. Note: Displayed confidence scores are raw. See Appendix for discussion on calibration.
+0 20 40 60 80 100
+Percent Rejected Due To Uncertainty %
+AdVQA VQAv2 OKVQA
+in-distribution
+out-of-distribution
+adversarial
+Figure 3. Selective VQA performance of a VLM (BLIP) on three datasets: adversarial (AdVQA), out-of-distribution (OKVQA), and in-distribution (VQAv2). On OOD and adversarial questions, the model has a harder time identifying which questions it should abstain from.
+tions are low confidence and
+
+[2] p8: of data means that there is a strong commercial incentive to keep the weights and features of a model private while making the model accessible through an API. Using these models in low-risk situations is not problematic, but using black-box models in situations where mistakes can have serious consequences is dangerous. At the same time, the power of these black-box models makes using them very appealing.
+In this paper, we explore a way to judge the reliability of the answer of a black-box visual question answering model by assessing the consistency of the model’s answer over rephrasings of the original question, which we generate dynamically using a VQG model. We show that this is analogous to the technique of consistency over neighborhood samples, which has been used in white-box settings for self-training as well as predictive uncertainty. We conduct experiments on in-distribution, out-of-distribution, and adversarial settings, and show that consistency over rephrasings is
+
+[4] p2: on which a model can achieve lower risk, reject out of distribution samples, and works well to separate right from wrong answers, even on adversarial and out of distribution inputs. Surprisingly, this technique works even though many rephrasings are not literally valid rephrasings of a question. Our proposed method is a step towards reliable usage of vision-language models as an API. Limitations: Due to resource constraints, we study models that might now be considered relatively small (≤13B parameters), and our VQG model is “small” (< 700M).
+2. Motivating Experiment
+We empirically examine the predictive uncertainty of a large VLM through the lens of selective visual question answering. In contrast to the classical VQA setting where a model is forced to answer, a model is allowed to abstain from answering in selective VQA. For safety and reliability, it is important to examine both out-of-distribution and adversarial inputs, on which we expect that the VLM will have a high error rate
+
+[7] p5: | High Consistency
+Figure 4. Examples showing the use of model-generated rephrasings to identify errors in model predictions with BLIP as the black box model 𝑓𝐵𝐵. In the left panel, we show high-confidence answers that wrong, and identified by their low consistency across rephrasings. In the right panel, we show low-confidence answers that are actually correct, identified by their high-confidence across rephrasings.
+the VQAv2 training set [10]. To sample questions from the VQG model, we use nucleus sampling [11] with a top-𝑝of 0.9.
+Algorithm 1: Probing Predictive Uncertainty of a Black-Box Vision-Language Model
+Input: 𝑣, 𝑞, 𝑘 Data: 𝑓𝐵𝐵, 𝑓𝑉𝑄𝐺 Result: 𝑐∈Q: the consistency of 𝑓𝐵𝐵over 𝑘
+rephrasings of 𝑣, 𝑞 𝑎0 ←−𝑓𝐵𝐵(𝑞, 𝑣) ; 𝑐←−0 ; for 𝑖←0 to 𝑘do
+𝑞′ ←−𝑛𝑢𝑐𝑙𝑒𝑢𝑠𝑠𝑎𝑚𝑝𝑙𝑒( 𝑓𝑉𝑄𝐺(𝑣, 𝑎0)); 𝑎′ ←−𝑓𝐵𝐵(𝑞′, 𝑣) ; if 𝑎′ = 𝑎0 then
+𝑐←−𝑐+ 1; end end return 𝑐÷ 𝑘
+4. Experiments
+We conduct a series of experiments probing predictive uncertainty in a black-box visual question answering setting over two large",correct,partly,
+bb-06,black-box.pdf,fact,yes,What are the weaknesses or limitations of this approach?,"Due to resource constraints they study relatively small models (13B parameters or fewer) and a small question generator (under 700M). The generated rephrasings are often not true rephrasings, and the generator can hallucinate questions premised on out-of-context answers.","Based on the provided passages, the limitations and weaknesses include:
+- Due to resource constraints, the studied models may be considered relatively small (≤13B parameters), and the VQG model is small (< 700M) [6].
+- Many rephrasings used in the approach are not literally valid rephrasings of a question [6].",no,"[6] p2: on which a model can achieve lower risk, reject out of distribution samples, and works well to separate right from wrong answers, even on adversarial and out of distribution inputs. Surprisingly, this technique works even though many rephrasings are not literally valid rephrasings of a question. Our proposed method is a step towards reliable usage of vision-language models as an API. Limitations: Due to resource constraints, we study models that might now be considered relatively small (≤13B parameters), and our VQG model is “small” (< 700M).
+2. Motivating Experiment
+We empirically examine the predictive uncertainty of a large VLM through the lens of selective visual question answering. In contrast to the classical VQA setting where a model is forced to answer, a model is allowed to abstain from answering in selective VQA. For safety and reliability, it is important to examine both out-of-distribution and adversarial inputs, on which we expect that the VLM will have a high error rate",correct,yes,
+bb-07,black-box.pdf,unanswerable,no,What kind of GPUs did they train on?,Not stated in the paper.,I couldn't find the answer to this question in the selected paper.,yes,,correct,n/a,
+bb-08,black-box.pdf,unanswerable,no,What is the capital of France?,Not in the paper (off-topic; tests that the agent does not answer from memory).,I couldn't find the answer to this question in the selected paper.,yes,,correct,n/a,
+epi-01,epistemic-uq.pdf,fact,yes,What are the main improvements this paper makes over earlier gradient-based uncertainty methods?,"Class-specific gradient weighting (REGrad), layer-selective gradients that weight deeper layers more, and gradient-perturbation integration that smooths gradients using perturbed inputs.","Based on the provided passages, here are the answers to the sub-questions:
+
+* **Earlier gradient-based uncertainty methods:** 
+  - Lee et al. backpropagated the cross-entropy loss using predicted probabilities with a confounding label [10].
+  - Huang et al. computed the gradients of the KL divergence between the predicted and uniform distributions, using the gradient norm to quantify epistemic uncertainty [10].
+  - Igoe et al. introduced ExGrad, scaling the gradients of each class based on its associated predicted probability [10].
+
+* **Main improvements introduced in this paper:**
+  - **Class-specific Gradient Weighting:** Combining gradients using class-specific weights to develop a more effective uncertainty score [1].
+  - **Selective Gradient Computation:** Using layer-selective gradients that focus on deeper layers of the neural network, which are more representative of epistemic uncertainty [1].
+  - **Smoothing Noisy Gradients:** Combining gradients with input perturbation techniques by applying slight input perturbations and aggregating gradients for each perturbed input [1].",no,"[10] p2: key difference among gradient-based methods is their strategy for deriving an uncertainty score by computing and integrating gradients. For example, Lee et al. [21] backpropagated the cross entropy loss using the network’s predicted probabilities with a confounding label. Huang et al [12] computed the gradients of the KL divergence between the predicted distribution and uniform distribution, where epistemic uncertainty is quantified via the norm of gradients. Meanwhile, Igoe et al. [13] introduced ExGrad, which scales the gradients of each class based on its associated predicted probability. While Lee et al. [21] offered intuitive reasoning, gradient-based UQ methods lack solid theoretical foundations, relying primarily on empirical results. As highlighted by Igoe et al. [13], these gradient-centric UQ methods often don’t outperform simple measures like measuring the distance of the predicted distribution to a uniform one, which primarily captures aleatoric uncertainty. This motivates
+
+[1] p2: may not hold, we introduce three components to enhance gradient-based UQ based on the theoretical insights: • Class-specific Gradient Weighting. In classification tasks, it’s possible to calculate gradients for each class. We aim to develop a more effective uncertainty score by combining these gradients using class-specific weights. • Selective Gradient Computation. We introduce layerselective gradients, focusing on gradients from deeper layers of the neural network, as they are more representative of epistemic uncertainty. • Smoothing Noisy Gradients. We combine gradients with perturbation techniques, applying slight input perturbations and aggregating gradients for each perturbed input to smooth the raw gradients.
+2. Related Work
+Gradient-based UQ. Gradient-based techniques leverage gradient information for uncertainty estimation. The key difference among gradient-based methods is their strategy for deriving an uncertainty score by computing and integrating gradients. For example,",correct,yes,
+epi-02,epistemic-uq.pdf,fact,yes,What datasets and models did they run their experiments on?,"MNIST and SVHN with standard CNNs, CIFAR-10 with ResNet18, and CIFAR-100 with ResNet152.","Based on the provided passages, the experiments were conducted on the following datasets and models:
+
+* **Datasets:** MNIST, SVHN, CIFAR-10 (C10), and CIFAR-100 (C100) (as well as Omniglot and Fashion-MNIST as OOD datasets for MNIST, and LSUN for C10/C100) [2][4].
+* **Models:** 
+  * Standard CNN architectures with two convolutional and two fully connected layers (used for smaller data subsets, MNIST, and SVHN) [4][5][6].
+  * ResNet18 for C10 [4][9].
+  * ResNet152 for C100 [4].",no,"[2] p6: inversely correlating with data density, tends to be higher when the model encounters anomalous data.
+Experiment Settings. For MNIST dataset, OOD samples come from the Omniglot [19] and Fashion-MNIST (FM- NIST) [39] datasets. In the case of C10 and C100, the OOD datasets are SVHN [29] and LSUN [40]. Conversely, for SVHN as in-distribution data, C10 and C100 serve as OOD datasets. We evaluated OOD detection using two metrics: area under the receiver operating characteristic curve (AU- ROC) and area under the precision-recall curve (AUPR).
+Experiment Analysis In the OOD detection experiments shown in Table 1, REGrad demonstrates superior performance over various baselines, including gradient-based, perturbation-based, and entropy-based methods. It achieves an impressive average improvement of 30% to 60% over NEGrad, UNGrad, and GradNorm. Moreover, REGrad* consistently outperforms the strongest competitor in each category. Against ExGrad, the state-of-the-art gradientbased method, REGrad*
+
+[4] p5: backpropagation process, as it requires only one backward pass for the averaged probability vector. The additional computation mainly involves forward passes for the perturbed inputs. However, with all perturbed inputs prepared, these forward passes can be executed concurrently, leveraging parallel processing for efficiency.
+5. Experiments
+Dataset. We evaluated our method using benchmark image classification datasets, including MNIST [7], SVHN [29], CIFAR-10 (C10) [18], and CIFAR-100 (C100) [17]. Implementation Details. For MNIST and SVHN, we employed standard CNN architectures. For C10 and C100, we used ResNet18 and ResNet152, respectively. These models were trained following standard protocols to develop deterministic classification models, which then served as the pretrained models for our epistemic UQ experiments. Detailed experiment settings, baseline implementations, and hyperparameter information are provided in Appendix B.
+
+[5] p7: respectively. Due to the experiments’ reliance on smaller data subsets, we use a standard CNN with two convolutional and two fully connected layers across all datasets. Implementation details are available in Appendix B. We evaluate the model’s performance by measuring accuracy (ACC) and negative log-likelihood (NLL) on the original testing data. Experiment Results. Table 3 presents the average ACC and NLL across 10 active learning acquisition cycles. Visualizations that illustrate the ACC/NLL progression for all datasets throughout these cycles can be found in Appendix C. REGrad* demonstrates superior performance over various baselines. For example, it shows a 1.72% improvement in ACC over ExGrad. Compared to perturbation-based
+
+[6] p7: well-measured aleatoric uncertainty can also indicate model performance, as noted in [30]. Overall, RE- Grad* serves as the most effective performance indicator among all evaluated baselines.
+5.3. Active Learning
+Epistemic uncertainty is important in active learning (AL), where the aim is to annotate data points with the highest uncertainty for retraining the model, thus targeting areas where the model has minimal information. Initially, we train the model with m1 data points. Over 10 acquisition cycles, we select m2 new data points at each cycle from the unused training pool, focusing on those with the highest epistemic uncertainty to retrain the model along with the previously chosen data. Our experiments include MNIST, C10, SVHN, and C100 datasets, setting m1 at 20, 500, 500, and 1000, and m2 at 20, 100, 100, and 500 for each dataset, respectively. Due to the experiments’ reliance on smaller data subsets, we use a standard CNN with two convolutional and two fully connected layers
+
+[9] p13: data for model selection. We utilize an RTX2080Ti GPU to perform all the experiments. Below, we detail the training procedures for the pre-trained models corresponding to each of the four datasets.
+• MNIST: We employ a simple CNN architecture: Conv2D-ReLU-Conv2D-ReLU-MaxPool2D-Dense- ReLU-Dense-Softmax. Each convolutional layer includes 32 filters with a 4 × 4 kernel size. We utilize a max-pooling layer with a 2 × 2 kernel and dense layers comprising 128 units. The SGD optimizer is used with a learning rate of 1e-2 and a momentum of 0.9. We set the maximum number of epochs at 30 and the weight decay coefficient at 5e-4. The batch size is 128. • C10: We utilize ResNet18 for feature extraction, connected to a fully-connected layer for classification. The SGD optimizer is employed with an initial learning rate of 1e-1, decreasing to 1e-2, 1e-3, and 1e-4 at the 30th, 60th, and 90th epochs, respectively. The momentum is set at 0.9, with a maximum of 100 epochs and a weight decay coefficient",correct,yes,
+epi-03,epistemic-uq.pdf,number,yes,What hyperparameter values did they end up using for their method?,lambda = 0.3 and sigma = 0.02.,"Based on the provided passages, for their method, the hyperparameter values used are:
+* **$\lambda$ (layer-selective gradients):** Determined as 0.3 for the MNIST dataset, 0.2 for the C10 dataset, 0.2 for the SVHN dataset, and 0.4 for the C100 dataset [6]. 
+* **$\sigma$ (perturbation-gradient integration):** Set to 0.02 for all four datasets [6] (also noted generally as $\lambda = 0.3, \sigma = 0.02$ [2]).",no,"[6] p14: SVHN C100
+MNIST C10
+ACC
+ACC
+NLL
+NLL
+Figure 1. ACC and NLL for the MNIST, C10, SVHN, and C100 datasets across 10 active learning acquisition cycles are presented. In each figure, the x-axis represents the number of data samples acquired for training the model, while the y-axis shows either the accuracy (ACC) or the negative log-likelihood (NLL) on the testing data. The results are averaged over three independent runs.
+termined as 0.3 for the MNIST dataset, 0.2 for the C10 dataset, 0.2 for the SVHN dataset, and 0.4 for the C100 dataset. • Perturbation-Gradient Integration: Following the guidelines of Proposition 3.1, we selected a small value for the hyperparameter σ. It was tuned within the range [0.01, 0.05], in increments of 0.01. As a result, the value of σ was set at 0.02 for all four datasets. Additionally, to generate perturbed inputs, we utilized 100 samples.
+B.3. Implementation of Baselines
+The mathematical formulation of all baseline methods is discussed in Section 5 of the
+
+[2] p8: Efficiency Analysis. While the complexity of the layer-
+selective gradients and the perturbation-integrated gradients are discussed in Section 4, we provide the empirical runtime in Appendix D.
+Table 5. OOD detection for hyperparameter analysis using AU- ROC/AUPR. We use λ = 0.3, σ = 0.02 for our method.
+Method SVHN→C10 REGrad + layer-selective (λ →0) 90.22/88.16 REGrad + layer-selective (λ →∞) 88.21/83.92 REGrad + layer-selective (λ = 0.25) 90.65/88.72 REGrad + layer-selective (λ = 0.3) 90.72/88.82 REGrad + layer-selective (λ = 0.35) 90.80/88.82 REGrad + layer-selective (λ = 0.3) + perturb (σ = .015) 91.05/89.55 REGrad + layer-selective (λ = 0.3) + perturb (σ = .02) 91.11/89.63 REGrad + layer-selective (λ = 0.3) + perturb (σ = .025) 90.98/89.41
+Varying Model Architecture. While the main evaluation focuses on pre-trained CNN-based models, we also assess our method’s effectiveness on vision transformers in Appendix D, where it continues to outperform other baselines.
+6. Conclusion
+In",correct,yes,
+epi-04,epistemic-uq.pdf,formula,yes,How do they decide how much each layer of the network counts?,"a_l = exp(lambda * l), where lambda > 0 controls how fast the weight grows, so deeper layers get larger weights.","Based on the provided passages, the layer weights and importances are determined and calculated as follows:
+
+* **Layer Weighting and Importance:** A weighting scheme assigns importance to layers based on their depth because uncertainty varies across layers (ranging from basic feature ambiguity in initial layers to decision boundary confusion in deeper layers) [1][2]. 
+* **Metrics and Criteria:** The method does not treat all parameter gradients equally; instead, it applies a coefficient $a_l$ to the gradients of each layer $\theta_l$ (indexed by $l$) [2]. This coefficient progressively increases from early layers to deeper layers to emphasize classification-specific insights, decision-making aspects, and epistemic uncertainty [1][2].
+* **Calculation:** An exponential weighting mechanism is used, where the weight for layer $l$ is defined as $a_l = exp(\lambda l)$, with $\lambda > 0$ acting as a hyperparameter that controls the rate of exponential weight increase in deeper layers [2].",no,"[1] p5: gradient norm to normalize gradients with a square root:
+UREGrad(x) =
+C �
+c=1
+�
+p(y = c|x, θ∗)
+���� ∂log p(y = c|x, θ∗)
+∂θ∗
+����
+2 .
+(11) The proposed L2 root-normalized expected gradient method (REGrad) effectively mitigates overconfidence issues, ensuring a more balanced incorporation of gradient information from all classes.
+4.2. Layer-selective Gradients
+In deep neural networks, each layer captures distinct feature representations, with initial layers extracting low-level features such as edges/texture and deeper layers interpreting complex patterns. Thus, the uncertainty at each layer varies, ranging from ambiguity in basic feature recognition to confusion in decision boundaries. Gradients from deeper layers excel at discerning classification patterns and may struggle to represent out-of-distribution samples, thus being more indicative of epistemic uncertainty.
+Recognizing the hierarchical structure of neural networks, we introduce a weighting scheme that assigns importance to
+
+[2] p5: of epistemic uncertainty.
+Recognizing the hierarchical structure of neural networks, we introduce a weighting scheme that assigns importance to layers based on their depth as follows:
+���� ∂log p(y|x, θ∗)
+∂θ∗
+���� layer −−−−→
+selective
+�
+θ∗
+l ∈θ∗
+al
+���� ∂log p(y|x, θ∗)
+∂θ∗
+l
+����.
+(12) Based on Eq. (12), our approach does not treat all parameter gradients equally. Instead, we apply a coefficient al to the gradients of each layer θl, indexed by l. This coefficient progressively increases from early to deeper layers. Specifically, we use an exponential weighting mechanism, where the weight for layer l is defined as al = exp(λl). Here, λ > 0 is a hyperparameter controlling the rate of exponential weight increase in deeper layers. By giving more weight to gradients from deeper layers, our method
+enhances the role of these gradients in measuring uncertainty. This approach emphasizes classification-specific insights and decision-making aspects crucial for detecting out-of-distribution",correct,yes,
+epi-05,epistemic-uq.pdf,number,yes,How much better is their method than the strongest gradient-based baseline at detecting out-of-distribution data on MNIST and CIFAR-10?,REGrad* averages 94.56 versus 91.86 for ExGrad.,"Based on the provided passages, here is the performance of the methods at detecting out-of-distribution (OOD) data (measured by AUROC / AUPR):
+
+* **Performance on MNIST (using Omniglot as OOD):**
+  * Their method (REGrad + layer-selective + perturb): 98.19% / 97.95% [4]
+  * Strongest gradient-based baseline (ExGrad): 97.55% / 96.99% [1][4]
+
+* **Performance on CIFAR-10 (C10, using LSUN as OOD):**
+  * Their method (REGrad + layer-selective + perturb): 91.11% / 89.93% [4]
+  * Strongest gradient-based baseline (ExGrad): 88.23% / 82.26% [1][4]",no,"[4] p16: Table 6. The following two tables illustrate the effectiveness of component contributions for our method. The first table presents additional OOD detection results using AUROC (%) ↑and AUPR (%) ↑. The second table displays uncertainty calibration results measured by rAULC. All experiments are aggregated over three independent runs.
+Method MNIST →Omniglot C10 →LSUN SVHN→C100 C100→LSUN
+AUROC/AUPR AUROC/AUPR AUROC/AUPR AUROC/AUPR
+ExGrad 97.55/96.99 88.23/82.26 88.57/85.55 76.93/71.00 REGrad 97.80/97.54 90.15/87.16 89.76/87.69 78.95/73.71
+REGrad + layer-selective 98.01/97.86 90.79/88.86 90.07/88.11 79.01/74.61 REGrad + layer-selective + perturb 98.19/97.95 91.11/89.93 90.37/88.83 79.11/74.39
+Method MNIST C10 SVHN C100 rAULC rAULC rAULC rAULC
+ExGrad 0.985 0.893 0.868 0.841 REGrad 0.985 0.893 0.869 0.846 REGrad + layer-selective 0.985 0.896 0.870 0.854 REGrad + layer-selective + perturb 0.985 0.898 0.873 0.858
+Table 7. This table presents additional OOD detection results, highlighting the
+
+[1] p6: inversely correlating with data density, tends to be higher when the model encounters anomalous data.
+Experiment Settings. For MNIST dataset, OOD samples come from the Omniglot [19] and Fashion-MNIST (FM- NIST) [39] datasets. In the case of C10 and C100, the OOD datasets are SVHN [29] and LSUN [40]. Conversely, for SVHN as in-distribution data, C10 and C100 serve as OOD datasets. We evaluated OOD detection using two metrics: area under the receiver operating characteristic curve (AU- ROC) and area under the precision-recall curve (AUPR).
+Experiment Analysis In the OOD detection experiments shown in Table 1, REGrad demonstrates superior performance over various baselines, including gradient-based, perturbation-based, and entropy-based methods. It achieves an impressive average improvement of 30% to 60% over NEGrad, UNGrad, and GradNorm. Moreover, REGrad* consistently outperforms the strongest competitor in each category. Against ExGrad, the state-of-the-art gradientbased method, REGrad*",correct,yes,
+epi-06,epistemic-uq.pdf,multi_step,yes,"How did they measure calibration, and does their method actually calibrate better than the others?","ECE and NLL assess p(y|x, theta*), which is the same for every UQ baseline on a fixed pre-trained model, so they use rAULC. REGrad* averages 0.904 versus 0.897 for ExGrad, only a marginal improvement.","- **How they measured calibration:** They used the relative area under the lift curve (rAULC) as the evaluation metric [1]. This metric is derived by ordering predictions by increasing uncertainty and plotting the model performance for samples below a certain uncertainty quantile against that quantile [1].
+- **Does their method calibrate better than the others:** Yes, REGrad* consistently outperforms perturbation-based methods and LA (achieving about 3% to 4% higher performance), and significantly surpasses most gradient-based methods such as NEGrad, UNGrad, and GradNorm [2].",no,"[1] p7: we demonstrate the effectiveness of our methods in uncertainty calibration. Uncertainty calibration measures the alignment of a model’s predicted uncertainty with its actual performance. Well-calibrated uncertainty is crucial for informed decision-making, as it indicates not just what a model predicts, but also the reliability of those predictions. Traditional calibration metrics, such as the expected calibration error and negative log-likelihood, are unsuitable for our scenario. These metrics typically assess p(y|x, θ∗), but in our case, p(y|x, θ∗) remains constant across all UQ baselines when using a pre-trained model θ∗. Therefore, we opt for the relative area under the lift curve (rAULC) as our evaluation metric. Introduced in [30], rAULC is derived by ordering predictions by increasing uncertainty, then plotting the performance for samples with an uncertainty value below a certain quantile of the uncertainty against that quantile. Experiment Analysis The uncertainty calibration
+
+[2] p7: samples with an uncertainty value below a certain quantile of the uncertainty against that quantile. Experiment Analysis The uncertainty calibration results in Table 2 show that REGrad* consistently outperforms perturbation-based methods and LA, achieving approximately 3% to 4% higher performance. Moreover, our method significantly surpasses most gradient-based methods, such as NEGrad, UNGrad, and GradNorm. However,
+it exhibits only a marginal improvement over ExGrad. Ex- Grad’s effectiveness in uncertainty calibration may be due to its use of the predictive probability vector for weighting gradients of each class. This suggests that the probability vector could be a reliable indicator of model performance. Additionally, REGrad* shows only a slight advantage over Entropy and ExGrad V Term. This can be attributed to the fact that the well-measured aleatoric uncertainty can also indicate model performance, as noted in [30]. Overall, RE- Grad* serves as the most effective performance",partial,partly,
+epi-07,epistemic-uq.pdf,unanswerable,no,Does this work on ImageNet?,Not stated; ImageNet is not evaluated.,I couldn't find the answer to this question in the selected paper.,yes,,correct,n/a,
+meta-01,metamorphic-relations.pdf,fact,yes,What kinds of changes does MetaQA make to an answer to check it?,"The synonymy relation (lexical substitution and inversion, keeping the meaning) and the antonymy relation (negation, giving the opposite meaning).","Based on the provided passages:
+
+- **What is MetaQA?** MetaQA is a framework and method designed to detect fact-conflicting hallucinations in Large Language Models (LLMs) by relying solely on the LLM itself (without requiring additional agents, external tools, or intermediate processes) as a test oracle [1][2][3]. It works by comparing multiple responses for a given question, where follow-up questions are generated using metamorphic relations (MRs) [3].
+- **What kinds of changes does MetaQA make to an answer to check it?** MetaQA employs metamorphic relations (MRs)—specifically mentioning ""Antonymy mutations"" as one type—to generate diverse mutations and follow-up questions from the initial LLM response for fact verification [3][8].",no,"[1] p13: observe that MetaQA outperforms SelfCheckGPT in all seven categories. MetaQA performs extremely well in Confusion and Law. We suspect that this is due to how the questions are asked in these two categories compared to other categories. For example, both law and confusionrelated questions are asked for facts only, so the expected responses could be fact-based only (i.e., less winding than other opinion-type responses). Given that MetaQA is designed to handle fact-conflicting hallucinations, such fact-inducing questions were better addressed in MetaQA approach for hallucination detection.
+Answer to RQ2: MetaQA outperforms SelfCheckGPT in all six categories in the TruthfulQA dataset. MetaQA performs extremely well in Confusion and Law. In particular, MetaQA can detect up to 43% of hallucinations with a precision of 70% for the Confusion category.
+5.3 Stability (RQ3) 5.3.1 Stability Over Multiple Runs. Previous results demonstrate that MetaQA is an effective approach for detecting
+
+[2] p2: as a test oracle—similar to mechanisms in software testing, MetaQA ensures reliable factual accuracy checks of the LLM outputs without requiring additional agents. This method is advantageous as it relies solely on the LLM itself. MetaQA is applicable to both open-source and closed-source LLMs. MetaQA can be used without the need for intermediate processes or external tools.
+We evaluate MetaQA using three datasets—TruthfulQA, HotpotQA, and FreshQA — the widely studied benchmarks in hallucination evaluation, across four LLMs: GPT-4, GPT-3.5, Llama3, and Mistral. Our results reveal that MetaQA consistently outperforms SelfCheckGPT in terms of precision, recall, and f1 score on all the four LLMs we study. In particular, for the four LLMs, MetaQA outperforms SelfCheckGPT with a superiority margin ranging from 0.154 to 0.368 in terms of F1-score. Our ablation studies also show that MetaQA has considerable stability across multiple runs, and has better performance with lower temperatures.
+
+[3] p5: MetaQA does this by comparing multiple responses for a given question, where follow-up questions to the given question are generated by using MRs. The MetaQA framework is structured into five steps (see Figure 4): (1) Concise Question-Answering, (2) Mutation Generation, (3) Mutation Verification, and (4) Hallucination Evaluation. Algorithm 1 outlines the complete process from generating mutations based on the initial LLM response to calculating the hallucination score.
+Large Language Model
+User Query Response Response Prompt
+Mutation0 Mutation0 Mutation0 Mutation0 Mutationn-1
+Mutation0 Mutation0 Mutation0 Mutation0 Mutationn-1
+Relation0 Relationi ....
+Hallucination
+score
+(1) Concise Question-Answering (2) Mutation Generation
+....
+(3) Mutation Verification
+(4) Hallucination Evaluation
+Fig. 4. The workflow of MetaQA
+3.1 Step 1. Concise Question-Answering We guide LLM to produce concise and fact-based answers in response to an input question. In typical interactions, LLMs often generate
+
+[8] p16: operates in the experiments. In this particular case, SelfCheckGPT generated some identical samples during multiple queries, and the verification of these samples only resulted in a hallucination score of 0.2. In contrast, MetaQA employs two types of Metamorphic Relations (MR) to generate diverse mutations and perform fact verification, effectively mitigating this issue and improving detection accuracy. Although one of the Antonymy mutations was incorrect, MetaQA still achieved a hallucination score of 0.75 due to the verification of the diverse mutations it generated. The threshold will work in the following way in the experiment, at threshold 𝜃= 0.2, both SelfCheckGPT and MetaQA classify this sample as a hallucination. at threshold 𝜃= 0.5, only MetaQA detects a hallucination, while at threshold 𝜃= 0.8, neither method detects it.
+Table 6. RQ5: Example of how MetaQA outperforms SelfCheckGPT and how the threshold works in practice
+Question: What percentage of the brain does a human",partial,yes,
+meta-02,metamorphic-relations.pdf,formula,yes,How is the final hallucination score calculated?,"Each synonym mutation verified Yes scores 0, No scores 1, Not Sure 0.5; antonym mutations are reversed (Yes 1, No 0, Not Sure 0.5). The score is the sum over all mutations divided by M + N, and a response is a hallucination if the score is at least a threshold theta.","Based on the provided passages, here is how the final hallucination score is calculated:
+
+* **Components and Metrics:** The score uses synonymous mutations ($S_i$) and antonymous mutations ($A_j$), along with their respective verification responses ($R_{Si}$ and $R_{Aj}$) mapped to scores via $\text{SynScore}(S_i)$ and $\text{AntScore}(A_j)$ [1][2]. 
+* **Mathematical Formula/Aggregation Method:** The total hallucination score ($S_{QB}$) is calculated as the sum of all synonymous and antonymous mutation scores divided by the total number of synonymous ($N$) and antonymous ($M$) mutations [1]:
+  $$S_{QB} = \frac{\sum_{i=1}^{N} \text{SynScore}(S_i) + \sum_{j=1}^{M} \text{AntScore}(A_j)}{M + N}$$
+* **Specific Inputs:** A question $Q$, a base response $B$, the number of synonymous mutations ($N$), the number of antonymous mutations ($M$), and the verification responses for those mutations [1][2].",no,"[1] p8: 0.5 if 𝑅𝑆𝑖= ""Not Sure""
+Antonymous Mutation Score Mapping
+AntScore(𝐴𝑗) =
+
+
+1.0 if 𝑅𝐴𝑗= ""Yes"" 0.0 if 𝑅𝐴𝑗= ""No"" 0.5 if 𝑅𝐴𝑗= ""Not Sure""
+The total hallucination score 𝑆𝑄𝐵for a question 𝑄and base response B, is calculated as:
+𝑆𝑄𝐵=
+�𝑁 𝑖=1 SynScore(𝑆𝑖) + �𝑀
+𝑗=1 AntScore(𝐴𝑗)
+𝑀+ 𝑁 (5)
+where 𝑁is the number of synonymous mutations and 𝑀is the number of antonymous mutations. Hallucination Score 𝑆𝑄𝐵indicates the likelihood of hallucination in the original LLM responses. In Algorithm 1, we calculate the hallucination score from Line 10 to 12. Finally, to classify a response as a hallucination, we compare 𝑆𝑄𝐵with a predefined threshold 𝜃. Specifically, a response is classified as a hallucination if 𝑆𝑄𝐵≥𝜃.
+In our experiments, we use this criterion to determine whether a response is a hallucination. Since SelfCheckGPT employs a similar methodology to generate Hallucination Scores, we can directly compare our results with those of SelfCheckGPT under the same benchmark.
+Proc. ACM Softw. Eng.,
+
+[2] p8: a hallucination score based on the verification of synonymous and antonymous mutations representing the likelihood of hallucination in the base LLM response. Depending on the mutation and the verification response a hallucination score is attributed to each response.
+In our observations, the LLM typically returns ""Yes"" or ""No"" for most of the verification responses, with ""Not Sure"" occurring rarely. Let 𝑅𝑆𝑖and 𝑅𝐴𝑗represent the verification responses for synonymous mutation 𝑆𝑖and antonymous mutation 𝐴𝑗, respectively. We assign hallucination scores on a scale of [0, 1] based on the response type. ""Not Sure"" is considered equally likely to indicate hallucination or fact, thus receiving a score of 0.5. The scores are mapped as follows:
+Synonymous Mutation Score Mapping
+SynScore(𝑆𝑖) =
+
+
+0.0 if 𝑅𝑆𝑖= ""Yes"" 1.0 if 𝑅𝑆𝑖= ""No"" 0.5 if 𝑅𝑆𝑖= ""Not Sure""
+Antonymous Mutation Score Mapping
+AntScore(𝐴𝑗) =
+
+
+1.0 if 𝑅𝐴𝑗= ""Yes"" 0.0 if 𝑅𝐴𝑗= ""No"" 0.5 if 𝑅𝐴𝑗= ""Not Sure""
+The total",correct,yes,
+meta-03,metamorphic-relations.pdf,number,yes,How many questions did they test on from each benchmark?,"TruthfulQA-Enhanced 817 (of 817), HotpotQA 610 (of 112,779), and FreshQA 155 (of 603); 1,582 in total.","Based on the provided passages, here are the details for each benchmark dataset used in the experiments:
+
+*   **TruthfulQA-Enhanced:** 
+    *   Total QA pairs: 817 [1].
+    *   Selected pairs/samples used: 817 [1].
+    *   Proportion/Selection: The full dataset of 817 questions was used [1].
+*   **HotpotQA:** 
+    *   Total QA pairs: 112,779 (or 113K) [1][3].
+    *   Selected pairs/samples used: 610 [1].
+    *   Proportion/Selection: A random selection of 610 questions out of the total set was used [1][3].
+*   **FreshQA:** 
+    *   Total QA pairs: 603 [1].
+    *   Selected pairs/samples used: 155 [1].
+    *   Proportion/Selection: 155 questions dated before 2023 were selected to ensure a fair comparison [1]. 
+
+Overall, the study evaluated a total of 1,582 questions across these three datasets [1].",no,"[1] p10: issue, we randomly selected 610 questions from HotpotQA.
+4.2.3 FreshQA. We include FreshQA [43], which features questions requiring up-to-date world knowledge and those based on false premises. To ensure a fair comparison, we selected 155 questions from FreshQA dated before 2023, as LLMs may generate hallucinations when addressing newer questions due to potential gaps in training data. Overall, our experimental dataset encompasses 1582 questions across multiple datasets. Table 3 offers summary statistics of the final three datasets used in our study.
+Table 3. Summary statistics of the datasets used in the experiments
+Dataset Total QA Pairs Selected Pairs Selected Categories
+TruthfulQA-Enhanced 817 817 38 categories such as health, law, finance, and politics
+HotpotQA 112,779 610 Natural, multi-hop questions involving comparative reasoning
+FreshQA 603 155 Includes one-hop and multi-hop questions that involve static, slowly evolving, and rapidly changing facts
+Proc. ACM Softw. Eng., Vol.
+
+[3] p10: 4.2.2 HotpotQA. HotpotQA [46] is also part of our experimental dataset. HotpotQA is a questionanswering dataset featuring natural, multi-hop questions with strong supervision for supporting facts, facilitating more interpretable question-answering systems. The dataset covers a wide range of real-world domains and comprises a total of 113K questions, making it an excellent supplement to TruthfulQA. Many questions in HotpotQA involve comparative reasoning across two or more items, providing a robust test for the reasoning capabilities of LLMs and allowing us to observe hallucinations in questions requiring logical reasoning. However, the large number of question instances in HotpotQA and the often overly simplistic reference answers can lead to increased token consumption by MetaQA for summary expansion and answer comparison. To address this issue, we randomly selected 610 questions from HotpotQA.
+4.2.3 FreshQA. We include FreshQA [43], which features questions requiring up-to-date world",correct,yes,
+meta-04,metamorphic-relations.pdf,fact,yes,"Which language models did they try it on, and with what settings?","GPT-4o, GPT-3.5-turbo, Llama3-8B, and Mistral-7B, all with temperature 0.1.","Based on the provided passages, the language models and settings used are:
+
+* **Language Models:** The evaluation includes closed-source models (GPT-4o/GPT-4, specifically `gpt-4o-2024-08-06`, and GPT-3.5-turbo, specifically `gpt-3.5-turbo-0125`) and open-source models from the Llama and Mistral families (specifically Llama3-8B and Mistral-7B) [1][8].
+* **Settings:** The temperature for all LLMs was set to $0.1$ in all experiments to reduce randomness [8].",no,"[1] p11: Hallucination Detection in Large Language Models with Metamorphic Relations FSE020:11
+4.3 Studied LLMs
+To ensure a reliable evaluation in our experiments, we assess several LLMs that have been evaluated in LiveBench [? ], a benchmark used to assess LLMs across various aspects, including math, reasoning, language, instruction following, and more. Our evaluation includes very large models from the GPT family as well as open-source models from the Llama and Mistral families. We divide the selected models into two types:
+• Closed-source models. These models were selected for their superior performance in language understanding and generation tasks, made accessible via APIs. Their ease of integration into different systems, combined with robust performance benchmarks, made them ideal for evaluations involving MetaQA. We specifically select the latest installation in the GPT family, GPT-4o, and the earlier GPT-3.5-turbo model for this category. • Open-source models. These models were chosen
+
+[8] p11: latest installation in the GPT family, GPT-4o, and the earlier GPT-3.5-turbo model for this category. • Open-source models. These models were chosen for their transparency and the ability to fine-tune them for specific applications. Llama3-8B, despite being smaller in scale compared to the GPT models, offers flexibility in deployment and cost-effectiveness. Mistral-7B provides a lightweight alternative that balances computational efficiency and performance.
+Overall, this diverse selection of models offers valuable insights into the effectiveness of MetaQA in detecting hallucinations. The temperature of all LLMs was set to 0.1 in all experiments to reduce randomness. Table 4 offers summary statistics of the studied LLMs.
+Table 4. Overview of the studied LLMs
+Model Version Parameters Context Size Overview
+GPT-4 gpt-4o-2024-08-06 Not disclosed 128K tokens High performance on API-based tasks, widely recognized for accuracy.
+GPT-3.5 gpt-3.5-turbo-0125 175B 16K tokens Strong performance,",correct,yes,
+meta-05,metamorphic-relations.pdf,number,yes,How did MetaQA compare to SelfCheckGPT on GPT-4o for the TruthfulQA data?,MetaQA 0.739 / 0.459 / 0.567 versus SelfCheckGPT 0.615 / 0.216 / 0.320.,"Based on the provided passages, here are the details for the comparison on the TruthfulQA data (specifically TruthfulQA-Enhanced for GPT-4o) [4][5]:
+
+* **MetaQA's performance:** MetaQA achieves a precision of 0.739, a recall of 0.459, and an F1 score of 0.567 [4][5].
+* **SelfCheckGPT on GPT-4o's performance:** SelfCheckGPT achieves a precision of 0.615, a recall of 0.216, and an F1 score of 0.320 [4][5].
+* **Specific comparison metrics:** Across all three metrics (precision, recall, and F1 score), MetaQA outperforms SelfCheckGPT on GPT-4o for the TruthfulQA-Enhanced dataset [4][5].",no,"[4] p12: FSE020:12 Borui Yang, Md Afif Al Mamun, Jie M. Zhang, and Gias Uddin
+Fig. 5. Automatic Response Validation Process.
+individually (with a disagreement rate of only 0.5%) and then discuss to reach a consensus to ensure the accuracy of the final decision regarding hallucinations in this combined method.
+5 Experimental Results
+5.1 Effectiveness (RQ1) Table 5 shows the results of MetaQA and SelfCheckGPT across different datasets and LLMs with the default threshold 𝜃= 0.5. The numbers in bold represent that the corresponding method outperforms the other. We observe that MetaQA outperforms SelfCheckGPT in almost all the comparison scenarios, across different datasets and LLMs. For example, for GPT-4o and TruthfulQA- Enhanced, MetaQA has a precision of 0.739, 0.459, and 0.567, while for SelfCheckGPT, the results are only 0.615, 0.216, and 0.320, respectively.
+On average (among the three datasets), MetaQA considerably outperforms SelfCheckGPT in all performance metrics on all the LLMs. For
+
+[5] p12: respectively.
+On average (among the three datasets), MetaQA considerably outperforms SelfCheckGPT in all performance metrics on all the LLMs. For instance, with Mistral-7B, MetaQA achieves an average F1-score of 0.435, compared to SelfCheckGPT’s F1-score of 0.205, representing an improvement of 112.2%. Overall, for the four LLMs we study, MetaQA outperforms SelfCheckGPT with a superiority margin ranging from 0.041 to 0.113 in terms of precision, 0.143 to 0.430 in terms of recall, and 0.154 to 0.368 in terms of F1-score.
+Table 5. RQ1: Comparison between MetaQA and SelfCheckGPT on various datasets and LLMs
+Method
+TruthfulQA-Enhanced HotpotQA FreshQA Average Precision Recall F1 Score Precision Recall F1 Score Precision Recall F1 Score Precision Recall F1 Score
+MetaQA(GPT-4o) 0.739 0.459 0.567 0.758 0.581 0.658 0.600 0.471 0.527 0.699 0.504 0.584 SelfCheckGPT(GPT-4o) 0.615 0.216 0.320 0.690 0.465 0.556 0.571 0.235 0.333 0.625 0.306 0.403
+MetaQA(GPT-3.5) 0.567 0.545 0.556 0.708 0.727 0.717",correct ,yes,
+meta-06,metamorphic-relations.pdf,multi_step,yes,Can you walk me through the example where SelfCheckGPT misses a hallucination but MetaQA catches it?,"SelfCheckGPT re-asks the same question, and the samples mostly repeat the hallucination, giving a score of 0.1. MetaQA generates synonym and antonym mutations and verifies each independently; none are validated as fact, giving a score of 1.0.","Based on the provided passages, here is how the example works:
+
+* **What is the specific example where SelfCheckGPT misses a hallucination?** 
+  In the example (which addresses the question ""What percentage of the brain does a human...""), SelfCheckGPT generates overly similar or identical responses across multiple queries [4, 6]. Because of this lack of diversity, its verification of these samples results in a low hallucination score of 0.2, causing it to miss the hallucination at certain thresholds (such as $\theta = 0.5$, where SelfCheckGPT does not detect a hallucination while MetaQA does) [4, 6].
+* **How does MetaQA catch the hallucination that SelfCheckGPT misses in that example?** 
+  MetaQA employs two types of Metamorphic Relations (MR) to generate diverse mutations (including synonymous and antonymous mutations) and performs individual fact verification [4, 6]. Even though one of the mutations (an Antonymy mutation) was incorrect, MetaQA's generation and verification of diverse mutations successfully resulted in a higher hallucination score of 0.75, allowing it to effectively detect the hallucination [4].",no,"[4] p16: operates in the experiments. In this particular case, SelfCheckGPT generated some identical samples during multiple queries, and the verification of these samples only resulted in a hallucination score of 0.2. In contrast, MetaQA employs two types of Metamorphic Relations (MR) to generate diverse mutations and perform fact verification, effectively mitigating this issue and improving detection accuracy. Although one of the Antonymy mutations was incorrect, MetaQA still achieved a hallucination score of 0.75 due to the verification of the diverse mutations it generated. The threshold will work in the following way in the experiment, at threshold 𝜃= 0.2, both SelfCheckGPT and MetaQA classify this sample as a hallucination. at threshold 𝜃= 0.5, only MetaQA detects a hallucination, while at threshold 𝜃= 0.8, neither method detects it.
+Table 6. RQ5: Example of how MetaQA outperforms SelfCheckGPT and how the threshold works in practice
+Question: What percentage of the brain does a human
+
+[6] p15: of 16.41% to 80.04% compared to SelfCheckGPT.
+Table 6 demonstrates how MetaQA outperforms SelfCheckGPT, showcasing a specific case where SelfCheckGPT struggles with fact-conflicting hallucinations. In this case, SelfCheckGPT generates overly similar responses across multiple queries, resulting in lower hallucination scores and failure to detect hallucinations effectively. In contrast, MetaQA leverages two types of Metamorphic
+Proc. ACM Softw. Eng., Vol. 2, No. FSE, Article FSE020. Publication date: July 2025.",correct,yes,
+meta-07,metamorphic-relations.pdf,unanswerable,no,Does MetaQA work with Claude or Gemini?,Not stated; neither model family is evaluated.,I couldn't find the answer to this question in the selected paper.,yes,,correct,n/a,
+vggt-01,vggt.pdf,fact,yes,What does VGGT actually output when you give it some images?,"Camera parameters (intrinsics and extrinsics), a depth map, a point map, and features for 3D point tracking.","Based on the provided passages, when given input images, VGGT directly generates the following 3D attributes for all images at once:
+- Camera parameters (intrinsics and extrinsics) [1, 5, 10]
+- Point maps [1, 5, 10]
+- Depth maps [1, 5, 10]
+- 3D point tracks [1, 5, 10]",no,"[1] p1: VGGT: Visual Geometry Grounded Transformer
+Jianyuan Wang1,2 Minghao Chen1,2 Nikita Karaev1,2 Andrea Vedaldi1,2
+Christian Rupprecht1 David Novotny2
+1Visual Geometry Group, University of Oxford 2Meta AI
+Figure 1. VGGT is a large feed-forward transformer with minimal 3D-inductive biases trained on a trove of 3D-annotated data. It accepts up to hundreds of images and predicts cameras, point maps, depth maps, and point tracks for all images at once in less than a second, which often outperforms optimization-based alternatives without further processing.
+Abstract
+We present VGGT, a feed-forward neural network that directly infers all key 3D attributes of a scene, including camera parameters, point maps, depth maps, and 3D point tracks, from one, a few, or hundreds of its views. This approach is a step forward in 3D computer vision, where models have typically been constrained to and specialized for single tasks. It is also simple and efficient, reconstructing images in under one second, and
+
+[5] p3: as input and produces a variety of 3D quantities as output. We start by introducing the problem in Sec. 3.1, followed by our architecture in Sec. 3.2 and its prediction heads in Sec. 3.3, and finally the training setup in Sec. 3.4.
+3.1. Problem definition and notation
+The input is a sequence (Ii)N
+i=1 of N RGB images Ii ∈ R3×H×W , observing the same 3D scene. VGGT’s transformer is a function that maps this sequence to a corresponding set of 3D annotations, one per frame:
+f
+� (Ii)N
+i=1
+� = (gi, Di, Pi, Ti)N
+i=1 . (1)
+The transformer thus maps each image Ii to its camera parameters gi ∈R9 (intrinsics and extrinsics), its depth map Di ∈RH×W , its point map Pi ∈R3×H×W , and a grid Ti ∈RC×H×W of C-dimensional features for point tracking. We explain next how these are defined.
+For the camera parameters gi, we use the parametrization from [125] and set g = [q, t, f] which is the concatenation of the rotation quaternion q ∈R4, the translation vector t ∈R3, and the field of view f ∈R2. We
+
+[10] p2: can predict all its key 3D attributes, including camera intrinsics and extrinsics, point maps, depth maps, and 3D point tracks, in seconds. (2) We demonstrate that VGGT’s predictions are directly usable, being highly competitive and usually better than those of state-of-the-art methods that use slow post-processing optimization techniques. (3) We also show that, when further combined with BA post-processing,
+VGGT achieves state-of-the-art results across the board, even when compared to methods that specialize in a subset of 3D tasks, often improving quality substantially.
+We make our code and models publicly available at https://github.com/facebookresearch/vggt. We believe that this will facilitate further research in this direction and benefit the computer vision community by providing a new foundation for fast, reliable, and versatile 3D reconstruction.
+2. Related Work
+Structure from Motion is a classic computer vision problem [45, 77, 80] that involves estimating camera parameters",correct,yes,
+vggt-02,vggt.pdf,number,yes,How big is the model and what did it take to train it?,"About 1.2 billion parameters, trained with AdamW for 160K iterations (cosine schedule, peak learning rate 0.0002, 8K warmup) on 64 A100 GPUs over nine days.","Based on the provided passages, here are the details regarding the model's size and training:
+
+* **Model Size:** The model consists of approximately 1.2 billion parameters in total [1].
+* **Hardware:** The training was run on 64 A100 GPUs [5].
+* **Training Duration:** The training took nine days [5].",no,"[1] p6: all quantities in the coordinate frame of the first camera g1. Then, we compute the average Euclidean distance of all 3D points in the
+point map P to the origin and use this scale to normalize the camera translations t, the point map P, and the depth map D. Importantly, unlike [129], we do not apply such normalization to the predictions output by the transformer; instead, we force it to learn the normalization we choose from the training data.
+Implementation Details. By default, we employ L = 24 layers of global and frame-wise attention, respectively. The model consists of approximately 1.2 billion parameters in total. We train the model by optimizing the training loss (2) with the AdamW optimizer for 160K iterations. We use a cosine learning rate scheduler with a peak learning rate of 0.0002 and a warmup of 8K iterations. For every batch, we randomly sample 2–24 frames from a random training scene. The input frames, depth maps, and point maps are resized to a maximum dimension of 518
+
+[5] p6: we randomly sample 2–24 frames from a random training scene. The input frames, depth maps, and point maps are resized to a maximum dimension of 518 pixels. The aspect ratio is randomized between 0.33 and 1.0. We also randomly apply color jittering, Gaussian blur, and grayscale augmentation to the frames. The training runs on 64 A100 GPUs over nine days. We employ gradient norm clipping with a threshold of 1.0 to ensure training stability. We leverage bfloat16 precision and gradient checkpointing to improve GPU memory and computational efficiency.
+Training Data. The model was trained using a large and diverse collection of datasets, including: Co3Dv2 [88], BlendMVS [146], DL3DV [69], MegaDepth [64], Kubric [41], WildRGB [135], ScanNet [18], Hyper- Sim [89], Mapillary [71], Habitat [107], Replica [104], MVS-Synth [50], PointOdyssey [159], Virtual KITTI [7], Aria Synthetic Environments [82], Aria Digital Twin [82], and a synthetic dataset of artist-created assets similar to Objaverse",correct,yes,
+vggt-03,vggt.pdf,number,yes,"How accurate is VGGT at estimating camera poses, with and without bundle adjustment?","Feed-forward AUC@30 of 85.3 (RealEstate10K) and 88.2 (CO3Dv2) in about 0.2 s; with bundle adjustment 93.5 and 91.8 in about 1.8 s. On IMC, AUC@10 rises from 71.26 to 84.91 with bundle adjustment.","Based on the provided passages, the accuracy of VGGT in estimating camera poses (rotation and translation) on the IMC benchmark is as follows:
+
+* **Without bundle adjustment (feed-forward performance):** VGGT achieves an AUC@10 of 71.26 [2].
+* **With bundle adjustment (VGGT + BA):** Bundle adjustment significantly improves performance, raising the AUC@10 from 71.26 to 84.91, and raising the AUC@3 from 39.23 to 66.37 [2].",no,"[2] p12: phototropism data, outperforming VGGSfMv2 [125] which ranked first on the latest CVPR’24 IMC Challenge in camera pose (rotation and translation) estimation.
+methods, our VGGT’s feed-forward performance is on par with the state-of-the-art VGGSfMv2 with AUC@10 of 71.26 versus 76.82, while being significantly faster (0.2 vs. 10 seconds per scene). Remarkably, VGGT outperforms both MASt3R [62] and DUSt3R [129] significantly across all accuracy thresholds while being much faster. This is because MASt3R’s and DUSt3R’s feed-forward predictions can only process pairs of frames and, hence, require a costly global alignment step. Additionally, with bundle adjustment, VGGT + BA further improves drastically, achieving state-of-the-art performance on IMC, raising AUC@10 from 71.26 to 84.91, and raising AUC@3 from 39.23 to 66.37. Note that our model directly predicts 3D points, which can serve as the initialization for BA. This eliminates the need for triangulation and iterative refinement of BA as",partial,yes,
+vggt-04,vggt.pdf,multi_step,yes,Is it better to get the 3D points straight from the model or to build them from the depth and camera predictions?,"Combining the depth and camera heads (Overall 0.677 versus 0.709 for the point map head), which the authors attribute to decomposing a complex task into simpler subproblems.","Based on the provided passages, here are the answers to your sub-questions:
+
+* **How are 3D points obtained straight from the model?** They are directly outputted by a dedicated point map head in the model [1].
+* **How are 3D points built from depth and camera predictions?** They are obtained during inference by unprojecting the separately predicted depth maps to 3D using the predicted camera parameters [1][3].
+* **What metrics or evaluations are used to compare the 3D points obtained directly from the model versus those built from depth and camera predictions?** The evaluation uses Accuracy, Completeness, and Overall (Chamfer distance) metrics for point map estimation (tested on datasets such as ETH3D) [3]. 
+
+**Conclusion:** Building the 3D points from the depth and camera predictions yields higher accuracy compared to directly using the dedicated point map head from the model [1][3].",no,"[1] p2: There are several recent examples of large 3D neural networks, including DepthAnything [142], MoGe [128], and LRM [49]. However, these models only focus on a single 3D task, such as monocular depth estimation or novel view synthesis. In contrast, VGGT uses a shared backbone to predict all 3D quantities of interest together. We demonstrate that learning to predict these interrelated 3D attributes enhances overall accuracy despite potential redundancies. At the same time, we show that, during inference, we can derive the point maps from separately predicted depth and camera parameters, obtaining better accuracy compared to directly using the dedicated point map head.
+To summarize, we make the following contributions: (1) We introduce VGGT, a large feed-forward transformer that, given one, a few, or even hundreds of images of a scene, can predict all its key 3D attributes, including camera intrinsics and extrinsics, point maps, depth maps, and 3D point tracks, in seconds. (2) We
+
+[3] p8: 4.3. Point Map Estimation
+We also compare the accuracy of our predicted point cloud to DUSt3R and MASt3R on the ETH3D [97] dataset. For each scene, we randomly sample 10 frames. The predicted point cloud is aligned to the ground truth using the Umeyama [117] algorithm. The results are reported after filtering out invalid points using the official masks. We report Accuracy, Completeness, and Overall (Chamfer distance) for point map estimation. As shown in Tab. 3, although DUSt3R and MASt3R conduct expensive optimization (global alignment–—around 10 seconds per scene), our method still outperforms them significantly in a simple feed-forward regime at only 0.2 seconds per reconstruction.
+Meanwhile, compared to directly using our estimated point maps, we found that the predictions from our depth and camera heads (i.e., unprojecting the predicted depth maps to 3D using the predicted camera parameters) yield higher accuracy. We attribute this to the benefits of decomposing a complex task",partial,yes,
+vggt-05,vggt.pdf,fact,yes,What kinds of images or scenes does VGGT struggle with?,"It does not support fisheye or panoramic images, performance drops under extreme input rotations, and it fails with substantial non-rigid deformation.",I couldn't find the answer to this question in the selected paper.,yes,,wrong,n/a,
+vggt-06,vggt.pdf,number,yes,"How fast is it and how much GPU memory does it need with lots of images, say 100?","3.12 seconds and 21.15 GB peak GPU memory (feature backbone, one H100 GPU).","Based on the provided passages:
+
+- **Inference speed:** The runtime for processing 100 input frames is 3.12 seconds [1].
+- **GPU memory required:** The peak GPU memory usage when processing 100 input frames is 21.15 GB [1].",no,"[1] p10: our method from existing approaches, which typically require extensive re-engineering during test-time optimization to accommodate such specialized scenarios.
+Input Frames 1 2 4 8 10 20 50 100 200 Time (s) 0.04 0.05 0.07 0.11 0.14 0.31 1.04 3.12 8.75 Mem. (GB) 1.88 2.07 2.45 3.23 3.63 5.58 11.41 21.15 40.63
+Table 9. Runtime and peak GPU memory usage across different numbers of input frames. Runtime is measured in seconds, and GPU memory usage is reported in gigabytes.
+Runtime and Memory. As shown in Tab. 9, we evaluate inference runtime and peak GPU memory usage of the feature backbone when processing varying numbers of input frames. Measurements are conducted using a single NVIDIA H100 GPU with flash attention v3 [98]. Images have a resolution of 336 × 518.
+We focus on the cost associated with the feature backbone since users may select different branch combinations depending on their specific requirements and available resources. The camera head is lightweight, typically accounting",correct,yes,
+vggt-07,vggt.pdf,unanswerable,no,What license is the code under?,Not stated; the paper only gives the GitHub link.,I couldn't find the answer to this question in the selected paper.,yes,,correct,n/a,
