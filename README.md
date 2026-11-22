@@ -199,6 +199,20 @@ npm test                         # Vitest + React Testing Library
 npm run typecheck && npm run lint
 ```
 
+## Evaluation
+The question set is in `eval/queries/queries.jsonl` (29 questions over four sample papers,
+each with expected pages and a reference answer). Run the scripts from `backend/`, with the
+database up and the papers uploaded under the filenames in the question file:
+```bash
+uv run python -m app.evaluation.retrieval_run   # keyword vs vector vs hybrid; no model calls
+uv run python -m app.evaluation.answer_run      # needs the backend running; resumable
+uv run python -m app.evaluation.answer_run --checks 3 --only bb-01,meta-02   # stability
+uv run python -m app.evaluation.labels          # writes eval/results/labels.csv to label by hand
+uv run python -m app.evaluation.summary         # tables from results + labels -> summary.md
+```
+The answer run makes roughly 3 model calls per answer and 6 per check, and pauses between
+requests to stay within free-tier limits. Method and reasoning: `docs/decisions/0009-evaluation-method.md`.
+
 ## Stopping
 ```bash
 docker compose down              # stop containers, keep data
