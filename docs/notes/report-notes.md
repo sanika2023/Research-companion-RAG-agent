@@ -548,6 +548,58 @@ step-by-step progress during the first 3 s, not the typing effect.
   question set, not a retrieval change. When the questions were rewritten in user wording,
   vggt-03 became a general camera-pose question, so page 12 (the IMC appendix table) was added.
 
+**Answer run** (`python -m app.evaluation.answer_run`, through the real `/ask` and
+`/diagnose` endpoints; both model tiers `gemini-3.5-flash-lite`). All 29 questions answered
+and each non-refused answer checked once; 8 answers checked 3 times for stability; no failed
+requests. Answers were hand-labelled by the author against the paper (`labels.csv`), without
+seeing the risk scores.
+
+| Result | Value |
+|---|---|
+| Answerable questions: correct / partial / wrong | 17 / 5 / 2 (of 24) |
+| Unanswerable questions refused | 5 of 5 (including the off-topic one) |
+| Answerable questions wrongly refused | 2 of 24 (bb-02, vggt-05) |
+| Citations support the answer: yes / partly / no | 20 / 2 / 0 (of 22 non-refused) |
+| Mean risk: correct / partial answers | 0.06 / 0.12 |
+| AUROC partial-or-wrong vs correct (first check, 22 answers) | 0.99 |
+| Same, on the 8 answers checked 3 times: run 1 / 2 / 3 | 1.00 / 0.38 / 0.38 |
+| Per check type, first check (lenient AUROC) | distractor 0.89, paraphrase 0.84, reorder 0.69, drop_cited 0.46 |
+| Latency, median (max) | answer 4.8 s (11.4 s); check 8.3 s (32.4 s) |
+
+**Findings**
+- **Grounding works.** No answerable question was answered with false content; both wrong
+  answers are false refusals, and every unanswerable question was refused, including "What is
+  the capital of France?" (no answering from memory). Citations never contradicted the answer.
+- **False refusals come from retrieval.** vggt-05 ("What kinds of images or scenes does VGGT
+  struggle with?") is the one question no search method found in the retrieval comparison;
+  bb-02 ("How big are the evaluation datasets?") never uses the paper's word "questions".
+  The answer is only as good as the retrieved passages.
+- **The risk score cannot see the worst errors.** Refusals are not checked (same rule as the
+  UI button), so the two wrong answers got no score at all.
+- **The first-check separation does not reproduce.** On the first check, partial answers scored
+  higher than correct ones almost perfectly (AUROC 0.99). Re-checking the same 8 answers twice
+  more gave AUROC 0.38 both times (slightly worse than chance); e.g. vggt-04 (partial) scored
+  0.13, then 0.05, then 0.03. Run-to-run spread (std 0.01–0.06) is as large as the gap between
+  correct and partial answers (0.06 vs 0.12), so the 0.99 is best read as luck on a small sample.
+  Answer length alone does not separate them (AUROC 0.51), so length is not the explanation.
+- **All scores fell below the "Medium" cut-off (0.2).** Every answer showed as Low in the UI, so
+  the placeholder cut-offs are too high for this model; but given the instability above,
+  re-tuning them on this data would over-fit.
+- **Drop-cited adds no signal** (AUROC 0.46), which supports giving it weight 0 (ADR 0007).
+  The distractor and paraphrase checks carried the most signal on the first check.
+- **Label validation caught a slip.** One correctness label was entered as "yes"; the summary
+  counted it as unlabelled, which surfaced it. It was corrected to "wrong" with the author's
+  confirmation.
+
+**Limitations to discuss**
+- 24 answerable questions over 4 papers, one labeller (no inter-annotator agreement), and the
+  questions and references were written by someone who had read the papers.
+- Only 5 partial and 0 checkable wrong answers, so the AUROC compares correct with partial
+  answers only; it says nothing about clearly wrong answers.
+- Stability measured on 8 answers × 3 checks; a larger repeat would give firmer numbers.
+- One model (Flash-Lite) for answering, checking, and judging; results may differ with a
+  stronger answer model.
+
 - Compare chunk sizes (e.g. 500 / 1,000 / 1,500) on retrieval quality for the eval queries.
 - Measure how often the correct page appears in the top-k retrieved chunks (page-level recall).
 - Include formula-heavy questions to quantify the math-extraction limitation.
