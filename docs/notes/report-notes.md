@@ -637,6 +637,12 @@ seeing the risk scores.
   layout.
 - 18 new frontend tests (106 total): theme choice and cycling, split clamping, pointer and key
   maths, and both components (keyboard, double-click, saved values). No new dependencies.
+- **Typography (on `main`, after the merge):** headings and the app name use a serif
+  (Newsreader) for a scholarly feel, body text uses Inter; both via `next/font`, so the font files
+  are downloaded at build time and served by the app (no runtime requests to Google). The header
+  gained a small monogram and an italic tagline; the paper list gained document icons.
+- A Grammarly browser extension adds attributes to `<body>` before React loads, which showed up
+  as a hydration error in dev; `suppressHydrationWarning` on `<body>` silences this harmless case.
 
 **Results** (real browser, production build)
 - Dragging the handle to 32% re-rendered the PDF at the new width and saved the split.

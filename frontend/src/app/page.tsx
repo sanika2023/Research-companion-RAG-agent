@@ -21,10 +21,13 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <section className="space-y-2">
-        <h1 className="text-2xl font-semibold">Your papers</h1>
-        <p className="text-sm text-muted">
+    <div className="mx-auto max-w-3xl space-y-8 px-6 py-12">
+      <section className="space-y-3">
+        <p className="text-xs font-semibold tracking-[0.16em] text-accent-ink uppercase">
+          Library
+        </p>
+        <h1 className="font-serif text-4xl font-semibold tracking-tight">Your papers</h1>
+        <p className="max-w-prose leading-relaxed text-muted">
           Pick a paper to ask questions about it. Every answer links to the exact passages it
           used, so you can check it yourself.
         </p>

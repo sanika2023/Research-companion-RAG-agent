@@ -29,6 +29,7 @@
   --accent-soft-hover: var(--color-amber-200);
   --on-accent-soft: var(--color-amber-900);
   --accent-line: var(--color-amber-300);
+  --accent-ink: var(--color-amber-700); /* small accent text, readable on canvas */
   --warn: var(--color-amber-800);
   --danger: var(--color-red-700);
   --link: var(--color-blue-700);
@@ -56,6 +57,7 @@
   --accent-soft-hover: var(--color-amber-900);
   --on-accent-soft: var(--color-amber-200);
   --accent-line: var(--color-amber-700);
+  --accent-ink: var(--color-amber-400);
   --warn: var(--color-amber-300);
   --danger: var(--color-red-400);
   --link: var(--color-blue-400);
@@ -63,6 +65,9 @@
 
 /* Makes bg-canvas, text-muted, border-line, ... available as Tailwind classes. */
 @theme inline {
+  /* Font variables come from next/font in layout.tsx; font-sans is the default everywhere. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-subtle: var(--subtle);
@@ -83,6 +88,7 @@
   --color-accent-soft-hover: var(--accent-soft-hover);
   --color-on-accent-soft: var(--on-accent-soft);
   --color-accent-line: var(--accent-line);
+  --color-accent-ink: var(--accent-ink);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-link: var(--link);
