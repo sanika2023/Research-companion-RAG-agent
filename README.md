@@ -166,6 +166,9 @@ Each hit has the page, text, bounding boxes, and its `keyword_rank` / `vector_ra
    changes (5-20 s, about six Flash-Lite calls), then a badge shows the hallucination risk
    (Low < 0.2, Medium < 0.4, High). Click the badge for the breakdown: each check's risk, the
    answer it produced, and the claims compared. The score measures consistency, not correctness.
+6. Drag the handle between the PDF and the chat to resize them (or focus it and use ←/→;
+   double-click resets to 50/50). The theme button in the header cycles Light, Dark, and System
+   (follows your OS). Both choices are remembered in your browser.
 
 ## Run the frontend locally (hot reload)
 Needs Node.js 20.18+ (24 LTS recommended) and the backend on port 8000.
