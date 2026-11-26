@@ -12,32 +12,32 @@ export function SignalRow({ signal }: { signal: Signal }) {
   ].filter(Boolean);
 
   return (
-    <li className="space-y-1 border-t border-stone-200 py-3 first:border-t-0">
+    <li className="space-y-1 border-t border-line py-3 first:border-t-0">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium">{title}</h3>
         {signal.risk !== null && (
-          <span className="text-xs whitespace-nowrap text-stone-600 tabular-nums">
+          <span className="text-xs whitespace-nowrap text-muted tabular-nums">
             risk {signal.risk.toFixed(2)}
           </span>
         )}
       </div>
       {signal.risk !== null && <RiskBar value={signal.risk} muted={signal.weight === 0} />}
-      <p className="text-xs text-stone-500">{description}</p>
-      {measures.length > 0 && <p className="text-xs text-stone-500">{measures.join(" · ")}</p>}
+      <p className="text-xs text-faint">{description}</p>
+      {measures.length > 0 && <p className="text-xs text-faint">{measures.join(" · ")}</p>}
       {signalNotes(signal).map((note) => (
-        <p key={note} className="text-xs text-amber-800">
+        <p key={note} className="text-xs text-warn">
           {note}
         </p>
       ))}
       {signal.answer && (
         <details className="text-xs">
-          <summary className="cursor-pointer text-stone-600 hover:text-stone-900">
+          <summary className="cursor-pointer text-muted hover:text-fg">
             Show answer
           </summary>
-          <div className="mt-1 space-y-1 rounded bg-stone-50 p-2">
+          <div className="mt-1 space-y-1 rounded bg-canvas p-2">
             {signal.kind === "paraphrase" && signal.question && (
               <p>
-                <span className="text-stone-500">Asked: </span>
+                <span className="text-faint">Asked: </span>
                 <span>{signal.question}</span>
               </p>
             )}
@@ -52,9 +52,9 @@ export function SignalRow({ signal }: { signal: Signal }) {
 
 export function RiskBar({ value, muted = false }: { value: number; muted?: boolean }) {
   return (
-    <div className="h-1.5 rounded-full bg-stone-200" aria-hidden>
+    <div className="h-1.5 rounded-full bg-sunken" aria-hidden>
       <div
-        className={`h-full rounded-full ${muted ? "bg-stone-400" : "bg-stone-700"}`}
+        className={`h-full rounded-full ${muted ? "bg-faint" : "bg-fg-soft"}`}
         style={{ width: `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%` }}
       />
     </div>

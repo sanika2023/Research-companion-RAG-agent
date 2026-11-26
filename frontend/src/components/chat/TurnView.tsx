@@ -38,20 +38,20 @@ export function TurnView({ turn, onCite, onCheck, onOpenCheck }: Props) {
 
   return (
     <li className="space-y-2">
-      <p className="ml-auto w-fit max-w-[85%] rounded-lg bg-stone-800 px-3 py-2 text-sm text-white">
+      <p className="ml-auto w-fit max-w-[85%] rounded-lg bg-inverse px-3 py-2 text-sm text-on-inverse">
         {turn.question}
       </p>
 
-      <div className="rounded-lg border border-stone-200 bg-white px-3 py-2">
+      <div className="rounded-lg border border-line bg-surface px-3 py-2">
         {turn.phase === "working" && !text && (
-          <p className="flex items-center gap-2 text-sm text-stone-500">
-            <span className="size-2 animate-pulse rounded-full bg-amber-500" aria-hidden />
+          <p className="flex items-center gap-2 text-sm text-faint">
+            <span className="size-2 animate-pulse rounded-full bg-accent" aria-hidden />
             {STEP_LABELS[turn.step ?? "classify"]}…
           </p>
         )}
 
         {turn.subQuestions.length > 0 && (
-          <div className="mb-2 text-xs text-stone-500">
+          <div className="mb-2 text-xs text-faint">
             Looked into:
             <ul className="ml-4 list-disc">
               {turn.subQuestions.map((q) => (
@@ -62,7 +62,7 @@ export function TurnView({ turn, onCite, onCheck, onOpenCheck }: Props) {
         )}
 
         {response?.refused ? (
-          <p role="note" className="text-sm text-stone-600 italic">
+          <p role="note" className="text-sm text-muted italic">
             {response.answer}
           </p>
         ) : (
@@ -78,17 +78,17 @@ export function TurnView({ turn, onCite, onCheck, onOpenCheck }: Props) {
         {response?.flags
           .filter((flag) => flag in FLAG_NOTES)
           .map((flag) => (
-            <p key={flag} className="mt-2 text-xs text-amber-800">
+            <p key={flag} className="mt-2 text-xs text-warn">
               ⚠ {FLAG_NOTES[flag]}
             </p>
           ))}
 
         {turn.phase === "error" && (
-          <p role="alert" className="mt-1 text-sm text-red-700">
+          <p role="alert" className="mt-1 text-sm text-danger">
             {turn.error}
           </p>
         )}
-        {turn.phase === "stopped" && <p className="mt-1 text-xs text-stone-500">Stopped.</p>}
+        {turn.phase === "stopped" && <p className="mt-1 text-xs text-faint">Stopped.</p>}
 
         {response && <Sources citations={response.citations} onCite={onCite} />}
 

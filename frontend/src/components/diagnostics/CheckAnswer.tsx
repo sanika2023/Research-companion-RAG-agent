@@ -4,9 +4,9 @@ import { type RiskLevel, riskLevel } from "@/lib/diagnostics";
 export const LEVEL_LABELS: Record<RiskLevel, string> = { low: "Low", medium: "Medium", high: "High" };
 
 export const LEVEL_STYLES: Record<RiskLevel, string> = {
-  low: "border-emerald-300 bg-emerald-50 text-emerald-900",
-  medium: "border-amber-300 bg-amber-50 text-amber-900",
-  high: "border-red-300 bg-red-50 text-red-900",
+  low: "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+  medium: "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  high: "border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200",
 };
 
 type Props = {
@@ -25,32 +25,32 @@ export function CheckAnswer({ check, badgeId, onCheck, onOpen }: Props) {
           <button
             type="button"
             onClick={onCheck}
-            className="rounded-md border border-stone-300 px-2 py-1 text-xs font-medium text-stone-700 hover:bg-stone-100"
+            className="rounded-md border border-line-strong px-2 py-1 text-xs font-medium text-fg-soft hover:bg-subtle"
           >
             Check this answer
           </button>
-          <span className="text-xs text-stone-500">
+          <span className="text-xs text-faint">
             Re-asks with small changes to see if the answer holds.
           </span>
         </div>
       );
     case "checking":
       return (
-        <p role="status" className="mt-3 flex items-center gap-2 text-xs text-stone-500">
-          <span className="size-2 animate-pulse rounded-full bg-amber-500" aria-hidden />
+        <p role="status" className="mt-3 flex items-center gap-2 text-xs text-faint">
+          <span className="size-2 animate-pulse rounded-full bg-accent" aria-hidden />
           Checking this answer… (usually 5–20 seconds)
         </p>
       );
     case "error":
       return (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <p role="alert" className="text-xs text-red-700">
+          <p role="alert" className="text-xs text-danger">
             {check.message}
           </p>
           <button
             type="button"
             onClick={onCheck}
-            className="rounded-md border border-stone-300 px-2 py-1 text-xs text-stone-700 hover:bg-stone-100"
+            className="rounded-md border border-line-strong px-2 py-1 text-xs text-fg-soft hover:bg-subtle"
           >
             Try again
           </button>
@@ -66,7 +66,7 @@ export function CheckAnswer({ check, badgeId, onCheck, onOpen }: Props) {
           aria-haspopup="dialog"
           onClick={onOpen}
           className={`mt-3 rounded-full border px-3 py-1 text-xs font-medium hover:brightness-95 ${
-            level ? LEVEL_STYLES[level] : "border-stone-300 bg-stone-50 text-stone-700"
+            level ? LEVEL_STYLES[level] : "border-line-strong bg-canvas text-fg-soft"
           }`}
         >
           {score === null || level === null
