@@ -37,7 +37,7 @@ TEST_DB = "rag_test"
 TEST_URL = ADMIN_URL.rsplit("/", 1)[0] + f"/{TEST_DB}"
 
 
-def _alembic_config(url: str) -> Config:
+def alembic_config(url: str) -> Config:
     config = Config(str(BACKEND_DIR / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND_DIR / "app" / "db" / "migrations"))
     config.set_main_option("sqlalchemy.url", url)
@@ -57,7 +57,7 @@ def migrated_db_url() -> Iterator[str]:
             conn.execute(text(f"CREATE DATABASE {TEST_DB}"))
     except OperationalError:
         pytest.skip("Postgres not reachable; start it with `docker compose up -d db`")
-    command.upgrade(_alembic_config(TEST_URL), "head")
+    command.upgrade(alembic_config(TEST_URL), "head")
     yield TEST_URL
     with admin.connect() as conn:
         conn.execute(text(f"DROP DATABASE IF EXISTS {TEST_DB} WITH (FORCE)"))
@@ -81,10 +81,8 @@ async def async_engine(migrated_db_url: str) -> AsyncIterator[AsyncEngine]:
 
 
 @pytest.fixture
-async def client(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
-) -> AsyncIterator[AsyncClient]:
-    """The real app wired to the test database, the fake embedder, and a temp upload dir."""
+async def client(sync_engine: Engine, async_engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
+    """The real app wired to the test database and the fake embedder and LLM."""
 
     async def test_session() -> AsyncIterator[AsyncSession]:
         async with AsyncSession(async_engine, expire_on_commit=False) as session:
@@ -93,7 +91,7 @@ async def client(
     app.dependency_overrides[get_session] = test_session
     app.dependency_overrides[get_embedder] = FakeEmbedder
     app.dependency_overrides[get_ingest_settings] = lambda: IngestSettings(
-        chunk_size=1000, chunk_overlap=150, max_upload_mb=1, upload_dir=tmp_path
+        chunk_size=1000, chunk_overlap=150, max_upload_mb=1, allow_uploads=True
     )
     app.dependency_overrides[get_retrieval_settings] = lambda: RetrievalSettings(
         top_k=8, candidates=40, rrf_k=60

@@ -13,8 +13,9 @@ async def add_document(
     page_count: int,
     chunks: list[Chunk],
     embeddings: list[list[float]],
+    pdf: bytes,
 ) -> models.Document:
-    """Stage a document and its chunks; the caller decides when to commit."""
+    """Stage a document, its chunks, and its PDF; the caller decides when to commit."""
     doc = models.Document(filename=filename, page_count=page_count)
     doc.chunks = [
         models.Chunk(
@@ -30,6 +31,7 @@ async def add_document(
     ]
     session.add(doc)
     await session.flush()  # assigns doc.id without ending the transaction
+    session.add(models.DocumentFile(doc_id=doc.id, data=pdf))
     return doc
 
 
@@ -47,3 +49,9 @@ async def list_documents(session: AsyncSession) -> list[tuple[models.Document, i
 
 async def get_document(session: AsyncSession, doc_id: uuid.UUID) -> models.Document | None:
     return await session.get(models.Document, doc_id)
+
+
+async def get_pdf(session: AsyncSession, doc_id: uuid.UUID) -> bytes | None:
+    return await session.scalar(
+        select(models.DocumentFile.data).where(models.DocumentFile.doc_id == doc_id)
+    )

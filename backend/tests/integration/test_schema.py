@@ -1,8 +1,12 @@
+from pathlib import Path
+
 import pytest
+from alembic import command
 from sqlalchemy import Engine, inspect, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.db.models import Chunk, Document
+from tests.integration.conftest import alembic_config
 
 pytestmark = pytest.mark.integration
 
@@ -80,3 +84,31 @@ async def test_orm_roundtrips_chunk_with_embedding_and_provenance(
     assert chunk.page == 2
     assert chunk.bbox == [[1.0, 2.0, 3.0, 4.0]]
     assert list(chunk.embedding) == pytest.approx(embedding)
+
+
+def test_migration_moves_pdfs_saved_on_disk_into_the_database(
+    migrated_db_url: str,
+    sync_engine: Engine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = alembic_config(migrated_db_url)
+    command.downgrade(config, "0001")  # back to when PDFs lived in UPLOAD_DIR
+    try:
+        with sync_engine.begin() as conn:
+            insert = text(
+                "INSERT INTO documents (filename, page_count) VALUES (:f, 1) RETURNING id"
+            )
+            saved = conn.execute(insert, {"f": "saved.pdf"}).scalar_one()
+            lost = conn.execute(insert, {"f": "lost.pdf"}).scalar_one()
+        (tmp_path / f"{saved}.pdf").write_bytes(b"%PDF-saved")
+        monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+
+        command.upgrade(config, "head")
+    finally:
+        command.upgrade(config, "head")  # leave the shared test database migrated
+
+    with sync_engine.connect() as conn:
+        rows = conn.execute(text("SELECT doc_id, data FROM document_files")).all()
+    assert [(doc_id, bytes(data)) for doc_id, data in rows] == [(saved, b"%PDF-saved")]
+    assert lost not in {doc_id for doc_id, _ in rows}

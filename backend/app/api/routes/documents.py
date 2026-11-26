@@ -1,19 +1,19 @@
-import asyncio
 import uuid
 from dataclasses import asdict
 from pathlib import PurePath
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_embedder, get_ingest_settings, get_retrieval_settings
 from app.core.config import IngestSettings, RetrievalSettings
 from app.db.session import get_session
 from app.ingestion.parse import InvalidPDFError
-from app.ingestion.pipeline import NoTextError, ingest_pdf, pdf_path
-from app.ingestion.store import get_document, list_documents
+from app.ingestion.pipeline import NoTextError, ingest_pdf
+from app.ingestion.store import get_document, get_pdf, list_documents
 from app.llm.base import Embedder
 from app.retrieval.hybrid import hybrid_search
 from app.schemas.documents import DocumentSummary, DocumentUploaded
@@ -23,6 +23,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 EmbedderDep = Annotated[Embedder, Depends(get_embedder)]
+IngestSettingsDep = Annotated[IngestSettings, Depends(get_ingest_settings)]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -30,8 +31,10 @@ async def upload_document(
     file: UploadFile,
     session: Session,
     embedder: EmbedderDep,
-    settings: Annotated[IngestSettings, Depends(get_ingest_settings)],
+    settings: IngestSettingsDep,
 ) -> DocumentUploaded:
+    if not settings.allow_uploads:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "uploads are turned off on this server")
     limit = settings.max_upload_mb * 1024 * 1024
     data = await file.read(limit + 1)  # one extra byte tells us the file is too big
     if len(data) > limit:
@@ -47,7 +50,6 @@ async def upload_document(
             filename,
             session=session,
             embedder=embedder,
-            upload_dir=settings.upload_dir,
             chunk_size=settings.chunk_size,
             chunk_overlap=settings.chunk_overlap,
         )
@@ -76,20 +78,17 @@ async def get_documents(session: Session) -> list[DocumentSummary]:
     ]
 
 
-@router.get("/{doc_id}/file", response_class=FileResponse)
-async def get_document_file(
-    doc_id: uuid.UUID,
-    session: Session,
-    settings: Annotated[IngestSettings, Depends(get_ingest_settings)],
-) -> FileResponse:
+@router.get("/{doc_id}/file", response_class=Response)
+async def get_document_file(doc_id: uuid.UUID, session: Session) -> Response:
     """The original PDF, for the viewer."""
     doc = await get_document(session, doc_id)
-    path = pdf_path(settings.upload_dir, doc_id)
-    # The file can be gone while the database row remains (e.g. a host's disk was reset).
-    if doc is None or not await asyncio.to_thread(path.is_file):
+    pdf = None if doc is None else await get_pdf(session, doc_id)
+    if doc is None or pdf is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
-    return FileResponse(
-        path, media_type="application/pdf", filename=doc.filename, content_disposition_type="inline"
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(doc.filename)}"},
     )
 
 
