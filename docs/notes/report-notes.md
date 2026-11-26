@@ -659,3 +659,43 @@ seeing the risk scores.
 **Limitations to discuss**
 - Contrast was checked by eye, not with a contrast tool.
 - The split is one value for all papers and only applies on wide screens.
+
+## Phase 9 — Deployment (branch `feat/deployment`, in progress)
+
+**What was built** (see ADR 0011)
+- Target: Vercel (frontend) + Google Cloud Run (backend, 1 GiB, scales to zero, max 1 instance)
+  + Neon (Postgres + pgvector), all on free tiers; secrets in Google Secret Manager.
+- **PDFs moved from disk into Postgres** (`document_files` table): hosted containers lose their
+  disk on every restart, which would have broken the PDF viewer while the chunks survived.
+  Migration 0002 imports PDFs saved by older versions; checked on the local database (all 4
+  papers imported, byte-for-byte the same sizes, viewer renders them).
+- **Read-only demo mode:** `ALLOW_UPLOADS=false` makes uploads a 403, and a new `GET /features`
+  lets the frontend show a short note instead of the upload button.
+- The container listens on `$PORT` (Cloud Run), and a `.gcloudignore` keeps `data/` (models,
+  papers) out of the Cloud Build upload.
+- Tests: 6 new backend tests (PDF stored with the document, missing PDF is a 404, uploads
+  disabled is a 403, `/features` both ways, the migration's import from disk), 2 config tests,
+  3 frontend tests (255 backend, 109 frontend in total). No new dependencies.
+
+**Measurements**
+- Backend memory: 222 MB at start, 423 MB after three searches (embedding model loaded). This
+  ruled out 512 MB free tiers (Render, Koyeb).
+
+**Paper licences (arXiv metadata, checked 2026-11-26)** — the app serves the full PDF, so only
+redistributable papers belong on the public demo:
+- *Consistency and Uncertainty* (black-box.pdf, arXiv 2404.10193, CVPR 2024): **CC BY 4.0**,
+  so redistribution is allowed with attribution.
+- *Epistemic UQ for Pre-trained Networks* (2404.10124, CVPR 2024), *Hallucination Detection with
+  Metamorphic Relations* (2502.15844, FSE 2025, ACM), *VGGT* (2503.11651, CVPR 2025): arXiv's
+  non-exclusive distribution licence, which only lets arXiv distribute them. Kept for local use
+  and the evaluation; not uploaded to the public demo.
+
+**Bugs and findings**
+- The test for "a failed file save rolls back the database" was removed: with the PDF in the
+  same transaction there is no separate file step left to fail.
+- Without a `.gcloudignore`, `gcloud run deploy --source` would have uploaded `backend/data/`
+  (68 MB, including the papers), since Cloud Build ignores `.dockerignore`.
+
+**Limitations to discuss**
+- Cold starts after idle; free-tier limits change often (checked 2026-11-26).
+- Visitors share one Gemini free-tier quota; when it runs out, answers fail until it resets.
