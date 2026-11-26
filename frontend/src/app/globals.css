@@ -1,5 +1,94 @@
 @import "tailwindcss";
 
+/* `dark:` classes apply under <html data-theme="dark">, set by ThemeToggle (not the OS directly). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Colours by role, so components say "muted text" instead of "stone-500" and each role
+ * has one light and one dark value here. Use these instead of raw palette colours.
+ */
+:root {
+  color-scheme: light;
+  --canvas: var(--color-stone-50); /* page background */
+  --surface: var(--color-white); /* header, cards, inputs, drawer */
+  --subtle: var(--color-stone-100); /* hover and inset backgrounds */
+  --sunken: var(--color-stone-200); /* behind the PDF pages */
+  --line: var(--color-stone-200);
+  --line-strong: var(--color-stone-300);
+  --fg: var(--color-stone-900);
+  --fg-soft: var(--color-stone-800);
+  --muted: var(--color-stone-600);
+  --faint: var(--color-stone-500);
+  --inverse: var(--color-stone-800); /* primary buttons, your own messages */
+  --inverse-hover: var(--color-stone-700);
+  --on-inverse: var(--color-white);
+  --disabled: var(--color-stone-300);
+  --accent: var(--color-amber-500);
+  --accent-faint: var(--color-amber-50);
+  --accent-soft: var(--color-amber-100); /* citation chips */
+  --accent-soft-hover: var(--color-amber-200);
+  --on-accent-soft: var(--color-amber-900);
+  --accent-line: var(--color-amber-300);
+  --warn: var(--color-amber-800);
+  --danger: var(--color-red-700);
+  --link: var(--color-blue-700);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: var(--color-stone-950);
+  --surface: var(--color-stone-900);
+  --subtle: var(--color-stone-800);
+  --sunken: var(--color-stone-800);
+  --line: var(--color-stone-800);
+  --line-strong: var(--color-stone-700);
+  --fg: var(--color-stone-100);
+  --fg-soft: var(--color-stone-200);
+  --muted: var(--color-stone-300);
+  --faint: var(--color-stone-400);
+  --inverse: var(--color-stone-200);
+  --inverse-hover: var(--color-stone-300);
+  --on-inverse: var(--color-stone-900);
+  --disabled: var(--color-stone-700);
+  --accent: var(--color-amber-400);
+  --accent-faint: var(--color-stone-800);
+  --accent-soft: var(--color-amber-950);
+  --accent-soft-hover: var(--color-amber-900);
+  --on-accent-soft: var(--color-amber-200);
+  --accent-line: var(--color-amber-700);
+  --warn: var(--color-amber-300);
+  --danger: var(--color-red-400);
+  --link: var(--color-blue-400);
+}
+
+/* Makes bg-canvas, text-muted, border-line, ... available as Tailwind classes. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-soft: var(--fg-soft);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-inverse: var(--inverse);
+  --color-inverse-hover: var(--inverse-hover);
+  --color-on-inverse: var(--on-inverse);
+  --color-disabled: var(--disabled);
+  --color-accent: var(--accent);
+  --color-accent-faint: var(--accent-faint);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-hover: var(--accent-soft-hover);
+  --color-on-accent-soft: var(--on-accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-link: var(--link);
+}
+
+
 /* Tailwind resets list and paragraph styles; restore them for Markdown answers. */
 .answer p + p,
 .answer p + ul,

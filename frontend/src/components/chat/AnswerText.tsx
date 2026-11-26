@@ -20,21 +20,21 @@ export function AnswerText({ text, citedNumbers, onCite }: Props) {
             type="button"
             aria-label={`Citation ${number}`}
             onClick={() => onCite(number)}
-            className="mx-0.5 inline-flex min-w-5 items-center justify-center rounded bg-amber-100 px-1 align-baseline text-xs font-semibold text-amber-900 hover:bg-amber-200 focus:outline-2 focus:outline-amber-500"
+            className="mx-0.5 inline-flex min-w-5 items-center justify-center rounded bg-accent-soft px-1 align-baseline text-xs font-semibold text-on-accent-soft hover:bg-accent-soft-hover focus:outline-2 focus:outline-accent"
           >
             {children}
           </button>
         );
       }
       return (
-        <a href={href} target="_blank" rel="noreferrer" className="text-blue-700 underline">
+        <a href={href} target="_blank" rel="noreferrer" className="text-link underline">
           {children}
         </a>
       );
     },
   };
   return (
-    <div className="answer text-sm leading-relaxed text-stone-800">
+    <div className="answer text-sm leading-relaxed text-fg-soft">
       <Markdown components={components}>{linkCitations(text, citedNumbers)}</Markdown>
     </div>
   );

@@ -45,13 +45,13 @@ export function PdfViewer({ url, target }: Props) {
   }, [target, targetLoaded]);
 
   return (
-    <div ref={container} className="h-full overflow-y-auto bg-stone-200 p-4">
+    <div ref={container} className="h-full overflow-y-auto bg-sunken p-4">
       <Document
         file={url}
         onLoadSuccess={(pdf) => setPageCount(pdf.numPages)}
-        loading={<p className="text-sm text-stone-600">Loading PDF…</p>}
+        loading={<p className="text-sm text-muted">Loading PDF…</p>}
         error={
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm text-danger">
             Could not load this paper&apos;s PDF.
           </p>
         }
@@ -63,7 +63,7 @@ export function PdfViewer({ url, target }: Props) {
             return (
               <div
                 key={number}
-                className="relative mx-auto mb-4 bg-white shadow"
+                className="relative mx-auto mb-4 bg-[white] shadow"
                 style={{ width, minHeight: size ? undefined : width * LETTER_RATIO }}
                 aria-label={`Page ${number}`}
               >

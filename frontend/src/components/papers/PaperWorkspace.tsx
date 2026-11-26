@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { Chat } from "@/components/chat/Chat";
+import { SplitPane } from "@/components/papers/SplitPane";
 import type { PdfTarget } from "@/components/pdf-viewer/PdfViewer";
 import { listDocuments, pdfUrl } from "@/lib/api";
 import type { Citation, DocumentSummary } from "@/types/api";
@@ -12,7 +13,7 @@ import type { Citation, DocumentSummary } from "@/types/api";
 // pdf.js needs browser APIs (canvas, workers), so the viewer is never rendered on the server.
 const PdfViewer = dynamic(
   () => import("@/components/pdf-viewer/PdfViewer").then((m) => m.PdfViewer),
-  { ssr: false, loading: () => <p className="p-4 text-sm text-stone-600">Loading viewer…</p> },
+  { ssr: false, loading: () => <p className="p-4 text-sm text-muted">Loading viewer…</p> },
 );
 
 /** The dual-pane view for one paper: PDF on the left, chat on the right. */
@@ -30,10 +31,10 @@ export function PaperWorkspace({ docId }: { docId: string }) {
   if (paper === "missing") {
     return (
       <div className="p-6 text-sm">
-        <p role="alert" className="text-red-700">
+        <p role="alert" className="text-danger">
           This paper could not be found.
         </p>
-        <Link href="/" className="text-blue-700 underline">
+        <Link href="/" className="text-link underline">
           Back to your papers
         </Link>
       </div>
@@ -45,21 +46,25 @@ export function PaperWorkspace({ docId }: { docId: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-stone-200 bg-white px-4 text-sm">
-        <Link href="/" className="text-stone-500 hover:text-stone-800">
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface px-4 text-sm">
+        <Link href="/" className="text-faint hover:text-fg-soft">
           ← Papers
         </Link>
         <span className="truncate font-medium">{paper?.filename ?? "…"}</span>
       </div>
-      <div className="grid min-h-0 flex-1 grid-rows-2 lg:grid-cols-2 lg:grid-rows-1">
-        <section aria-label="PDF viewer" className="min-h-0 border-stone-200 lg:border-r">
-          <PdfViewer url={pdfUrl(docId)} target={target} />
-        </section>
-        <section aria-label="Chat" className="min-h-0 bg-stone-50">
-          {/* key: a different paper starts a fresh conversation */}
-          <Chat key={docId} docId={docId} onCite={showCitation} />
-        </section>
-      </div>
+      <SplitPane
+        start={
+          <section aria-label="PDF viewer" className="h-full">
+            <PdfViewer url={pdfUrl(docId)} target={target} />
+          </section>
+        }
+        end={
+          <section aria-label="Chat" className="h-full bg-canvas">
+            {/* key: a different paper starts a fresh conversation */}
+            <Chat key={docId} docId={docId} onCite={showCitation} />
+          </section>
+        }
+      />
     </div>
   );
 }

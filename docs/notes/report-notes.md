@@ -494,7 +494,7 @@ step-by-step progress during the first 3 s, not the typing effect.
 
 ---
 
-## Phase 8 — Evaluation (branch `feat/evaluation`, in progress)
+## Phase 8 — Evaluation (branch `feat/evaluation`)
 
 **What was built so far**
 - A question set of 29 questions over the four sample papers
@@ -621,3 +621,35 @@ seeing the risk scores.
 - Inspection cost: model calls, time, and tokens per answer.
 - Score stability: run the check several times per answer and report the spread (the same
   question scored 0.28 and 0.14 in two runs).
+
+---
+
+## Design polish (branch `feat/design-polish`)
+
+**What was built** (see ADR 0010)
+- The app is renamed **Research Companion** (tab title and header).
+- **Light/dark mode:** a header button cycles Light → Dark → System (follows the OS, and switches
+  live when the OS does). Colours are defined once per role (surface, muted text, border,
+  accent, ...) with a light and a dark value; components use the role names. PDF pages stay
+  white like paper. An inline script applies the saved theme before the first paint (no flash).
+- **Resizable panes:** a handle between the PDF and the chat, by mouse or keyboard (←/→, Home/End,
+  double-click to reset), limited to 25–75%; the split is remembered. Phones keep the stacked
+  layout.
+- 18 new frontend tests (106 total): theme choice and cycling, split clamping, pointer and key
+  maths, and both components (keyboard, double-click, saved values). No new dependencies.
+
+**Results** (real browser, production build)
+- Dragging the handle to 32% re-rendered the PDF at the new width and saved the split.
+- Answer, citation chips, sources, the Medium badge, and the drawer were checked in both themes
+  (with a canned answer, see below); all readable.
+
+**Bugs and findings from testing**
+- The type checker caught an array lookup that could be `undefined` (strict indexed access).
+- Running `npm run build` while `npm run dev` was running broke the dev server's paper page
+  (HTTP 500) until it was restarted: they share the `.next` folder.
+- During the browser check the backend answered every question with "Something went wrong"
+  (frontend-independent; seen with a direct request). Not investigated in this branch.
+
+**Limitations to discuss**
+- Contrast was checked by eye, not with a contrast tool.
+- The split is one value for all papers and only applies on wide screens.

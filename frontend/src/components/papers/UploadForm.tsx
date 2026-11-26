@@ -34,7 +34,7 @@ export function UploadForm({ upload = uploadDocument, onUploaded }: Props) {
   return (
     <div className="space-y-2">
       <label
-        className={`inline-flex cursor-pointer items-center rounded-md bg-stone-800 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 has-disabled:cursor-wait has-disabled:bg-stone-400 has-focus-visible:outline-2 has-focus-visible:outline-amber-500`}
+        className={`inline-flex cursor-pointer items-center rounded-md bg-inverse px-4 py-2 text-sm font-medium text-on-inverse hover:bg-inverse-hover has-disabled:cursor-wait has-disabled:bg-disabled has-focus-visible:outline-2 has-focus-visible:outline-accent`}
       >
         Upload a paper (PDF)
         <input
@@ -46,12 +46,12 @@ export function UploadForm({ upload = uploadDocument, onUploaded }: Props) {
         />
       </label>
       {processing && (
-        <p className="text-sm text-stone-600">
+        <p className="text-sm text-muted">
           Processing {processing}… reading, splitting and indexing the text takes about 20 seconds.
         </p>
       )}
       {error && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
