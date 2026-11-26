@@ -1,14 +1,24 @@
 import uuid
-from pathlib import Path
 
 import pytest
 from httpx import AsyncClient, Response
+from sqlalchemy import Engine, text
 
+from app.api.deps import get_ingest_settings
+from app.core.config import IngestSettings
+from app.main import app
 from tests.pdf_factory import Text, make_pdf
 
 pytestmark = pytest.mark.integration
 
 PDF = make_pdf([[Text(72, 72, "Attention is all you need.")], [Text(72, 72, "Page two.")]])
+
+
+def disable_uploads() -> None:
+    """The public demo's setting; the client fixture clears overrides afterwards."""
+    app.dependency_overrides[get_ingest_settings] = lambda: IngestSettings(
+        chunk_size=1000, chunk_overlap=150, max_upload_mb=1, allow_uploads=False
+    )
 
 
 async def upload(client: AsyncClient, data: bytes, name: str = "paper.pdf") -> Response:
@@ -81,11 +91,37 @@ async def test_file_of_unknown_paper_is_a_404(client: AsyncClient) -> None:
     assert response.status_code == 404
 
 
-async def test_file_missing_from_storage_is_a_404(client: AsyncClient, tmp_path: Path) -> None:
-    # e.g. a host whose disk was wiped on restart while the database kept the paper
+async def test_paper_without_a_stored_pdf_is_a_404(
+    client: AsyncClient, sync_engine: Engine
+) -> None:
+    # e.g. a paper uploaded before PDFs moved into the database whose file was already gone
     doc_id = (await upload(client, PDF)).json()["doc_id"]
-    (tmp_path / f"{doc_id}.pdf").unlink()
+    with sync_engine.begin() as conn:
+        conn.execute(text("DELETE FROM document_files WHERE doc_id = :d"), {"d": doc_id})
 
     response = await client.get(f"/documents/{doc_id}/file")
 
     assert response.status_code == 404
+
+
+async def test_features_report_that_uploads_are_enabled(client: AsyncClient) -> None:
+    response = await client.get("/features")
+
+    assert response.json() == {"uploads_enabled": True}
+
+
+async def test_upload_is_a_403_when_uploads_are_disabled(client: AsyncClient) -> None:
+    disable_uploads()
+
+    response = await upload(client, PDF)
+
+    assert response.status_code == 403
+    assert (await client.get("/documents")).json() == []
+
+
+async def test_features_report_that_uploads_are_disabled(client: AsyncClient) -> None:
+    disable_uploads()
+
+    response = await client.get("/features")
+
+    assert response.json() == {"uploads_enabled": False}

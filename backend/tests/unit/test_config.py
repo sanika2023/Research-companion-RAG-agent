@@ -113,3 +113,13 @@ def test_similarity_floor_must_leave_room_below_one(env: pytest.MonkeyPatch) -> 
 
     with pytest.raises(ValidationError):
         load_settings()
+
+
+def test_uploads_are_allowed_by_default(env: pytest.MonkeyPatch) -> None:
+    assert load_settings().ingest.allow_uploads is True
+
+
+def test_uploads_can_be_turned_off_for_a_public_demo(env: pytest.MonkeyPatch) -> None:
+    env.setenv("ALLOW_UPLOADS", "false")
+
+    assert load_settings().ingest.allow_uploads is False

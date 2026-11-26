@@ -1,7 +1,14 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, diagnoseAnswer, listDocuments, pdfUrl, uploadDocument } from "@/lib/api";
+import {
+  ApiError,
+  diagnoseAnswer,
+  getFeatures,
+  listDocuments,
+  pdfUrl,
+  uploadDocument,
+} from "@/lib/api";
 import type { DiagnoseRequest } from "@/types/api";
 
 const json = (body: unknown, status = 200) =>
@@ -35,6 +42,13 @@ describe("api", () => {
     await expect(uploadDocument(file, fetchFn)).rejects.toEqual(
       new ApiError(400, "PDF has no extractable text"),
     );
+  });
+
+  it("asks the server which features it allows", async () => {
+    const fetchFn = vi.fn(async () => json({ uploads_enabled: false }));
+
+    expect(await getFeatures(fetchFn)).toEqual({ uploads_enabled: false });
+    expect(fetchFn).toHaveBeenCalledWith("http://localhost:8000/features", expect.anything());
   });
 
   it("builds the URL of a paper's PDF", () => {
