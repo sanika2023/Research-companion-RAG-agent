@@ -238,24 +238,28 @@ No manual migration needed: the backend migrates on startup.
    ```bash
    gcloud auth login
    gcloud config set project YOUR_PROJECT_ID
-   gcloud services enable run.googleapis.com cloudbuild.googleapis.com      artifactregistry.googleapis.com secretmanager.googleapis.com
+   gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
    ```
+   (`gcloud init` already does the login and project steps.) Commands below are one line each;
+   keep the quotes, since PowerShell splits unquoted commas into separate arguments.
 3. In **Security → Secret Manager**, create two secrets: `database-url` (the Neon string from
-   step 1) and `gemini-api-key`. Then let Cloud Run read them (the project number is on the
-   Cloud console home page):
+   step 1) and `gemini-api-key`. Then let the project's default service account read them and
+   build from source (new projects give it no roles; the project number comes from
+   `gcloud projects describe YOUR_PROJECT_ID --format="value(projectNumber)"`):
    ```bash
-   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID      --member=serviceAccount:YOUR_PROJECT_NUMBER-compute@developer.gserviceaccount.com      --role=roles/secretmanager.secretAccessor
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member=serviceAccount:YOUR_PROJECT_NUMBER-compute@developer.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member=serviceAccount:YOUR_PROJECT_NUMBER-compute@developer.gserviceaccount.com --role=roles/run.builder
    ```
 4. Build and deploy from the repo root (uploads on for now, to load the papers):
    ```bash
-   gcloud run deploy research-companion-api --source backend --region us-east1      --allow-unauthenticated --memory 1Gi --cpu 1 --min-instances 0 --max-instances 1      --set-secrets DATABASE_URL=database-url:latest,LLM_API_KEY=gemini-api-key:latest      --set-env-vars LLM_ANSWER_MODEL=gemini-3.5-flash-lite,LLM_LIGHT_MODEL=gemini-3.5-flash-lite,EMBEDDING_MODEL=BAAI/bge-small-en-v1.5,ALLOW_UPLOADS=true
+   gcloud run deploy research-companion-api --source backend --region us-east1 --allow-unauthenticated --memory 1Gi --cpu 1 --min-instances 0 --max-instances 1 --set-secrets "DATABASE_URL=database-url:latest,LLM_API_KEY=gemini-api-key:latest" --set-env-vars "LLM_ANSWER_MODEL=gemini-3.5-flash-lite,LLM_LIGHT_MODEL=gemini-3.5-flash-lite,EMBEDDING_MODEL=BAAI/bge-small-en-v1.5,ALLOW_UPLOADS=true"
    ```
    It prints the service URL (`https://research-companion-api-....run.app`). Check
    `<URL>/health`.
 5. Load the papers, then turn uploads off:
    ```bash
-   curl -F "file=@backend/data/papers/black-box.pdf" <URL>/documents
-   gcloud run services update research-companion-api --region us-east1      --update-env-vars ALLOW_UPLOADS=false
+   curl.exe -F "file=@backend/data/papers/black-box.pdf" <URL>/documents
+   gcloud run services update research-companion-api --region us-east1 --update-env-vars ALLOW_UPLOADS=false
    ```
 
 ### 3. Frontend (Vercel)
