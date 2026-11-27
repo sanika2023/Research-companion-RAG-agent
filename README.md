@@ -268,7 +268,7 @@ No manual migration needed: the backend migrates on startup.
    `NEXT_PUBLIC_API_URL` = the Cloud Run URL (no trailing slash). Deploy.
 3. Allow the Vercel site to call the backend:
    ```bash
-   gcloud run services update research-companion-api --region us-east1      --update-env-vars CORS_ORIGINS=https://YOUR-APP.vercel.app
+   gcloud run services update research-companion-api --region us-east1 --update-env-vars CORS_ORIGINS=https://YOUR-APP.vercel.app
    ```
 
 Redeploy the backend after code changes by re-running the `gcloud run deploy` command from
