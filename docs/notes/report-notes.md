@@ -680,6 +680,8 @@ seeing the risk scores.
 **Measurements**
 - Backend memory: 222 MB at start, 423 MB after three searches (embedding model loaded). This
   ruled out 512 MB free tiers (Render, Koyeb).
+- Uploading a 1.9 MB paper peaked at about 1.24 GB on Cloud Run (from its "Memory limit of
+  1024 MiB exceeded" log), so ingestion needs roughly 3x the memory of answering questions.
 
 **Paper licences (arXiv metadata, checked 2026-11-26)** — the app serves the full PDF, so only
 redistributable papers belong on the public demo:
@@ -695,7 +697,15 @@ redistributable papers belong on the public demo:
   same transaction there is no separate file step left to fail.
 - Without a `.gcloudignore`, `gcloud run deploy --source` would have uploaded `backend/data/`
   (68 MB, including the papers), since Cloud Build ignores `.dockerignore`.
+- First real deploy: the upload failed with a 503 because the container ran out of memory at
+  1 GiB (local Docker has no memory limit, so tests and local runs never showed it). Worked
+  around by uploading at 2 GiB, then dropping back to 1 GiB with uploads off.
+- Deploy-step fixes found on Windows: PowerShell splits unquoted comma lists (the `--set-secrets`
+  value had to be quoted), new Google Cloud projects give the default service account no roles
+  (Cloud Build needed `roles/run.builder`), and the CORS origin must not end in `/`.
 
 **Limitations to discuss**
 - Cold starts after idle; free-tier limits change often (checked 2026-11-26).
 - Visitors share one Gemini free-tier quota; when it runs out, answers fail until it resets.
+- Ingestion's memory peak (about 1.24 GB) means a 1 GiB instance can serve questions but not
+  uploads; smaller embedding batches would fix this but weren't needed for a read-only demo.

@@ -256,11 +256,14 @@ No manual migration needed: the backend migrates on startup.
    ```
    It prints the service URL (`https://research-companion-api-....run.app`). Check
    `<URL>/health`.
-5. Load the papers, then turn uploads off:
+5. Load the papers, then turn uploads off. Uploading peaks at about 1.24 GB, so raise the
+   memory for the upload and lower it again afterwards (questions fit in 1 GiB):
    ```bash
+   gcloud run services update research-companion-api --region us-east1 --memory 2Gi
    curl.exe -F "file=@backend/data/papers/black-box.pdf" <URL>/documents
-   gcloud run services update research-companion-api --region us-east1 --update-env-vars ALLOW_UPLOADS=false
+   gcloud run services update research-companion-api --region us-east1 --memory 1Gi --update-env-vars ALLOW_UPLOADS=false
    ```
+   (Uploading through the website while uploads are on works too.)
 
 ### 3. Frontend (Vercel)
 1. At [vercel.com](https://vercel.com), **Add New → Project** and import this GitHub repo.

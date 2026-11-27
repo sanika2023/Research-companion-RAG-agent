@@ -58,3 +58,9 @@ Free tiers as checked on 2026-11-26 (they change often; re-check before relying 
   demo has uploads off.
 - Visitors still use the Gemini quota by asking questions; when it runs out, answers fail until
   it resets.
+- **Uploads don't fit in 1 GiB.** Uploading black-box.pdf (1.9 MB) peaked at about 1.24 GB and
+  Cloud Run killed the container (the browser saw a 503; the transaction rolled back, so nothing
+  was half-saved). Embedding every chunk in fastembed's default batches needs far more memory
+  than embedding one question (423 MB after searches). Papers are therefore loaded with the
+  service temporarily at 2 GiB, then set back to 1 GiB with uploads off. Embedding in smaller
+  batches would lower the peak at some cost in speed; not done, since the demo has uploads off.
