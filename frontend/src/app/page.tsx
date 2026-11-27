@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { DemoNote } from "@/components/papers/DemoNote";
 import { PaperList } from "@/components/papers/PaperList";
 import { UploadForm } from "@/components/papers/UploadForm";
 import { getFeatures, listDocuments } from "@/lib/api";
 import { API_URL } from "@/lib/config";
+import { DEMO_PAPERS } from "@/lib/demo-papers";
 import type { DocumentSummary, Features } from "@/types/api";
 
 export default function HomePage() {
@@ -42,10 +44,7 @@ export default function HomePage() {
       {features?.uploads_enabled ? (
         <UploadForm onUploaded={(doc) => router.push(`/papers/${doc.doc_id}`)} />
       ) : features ? (
-        <p className="rounded-lg border border-accent-line bg-accent-faint px-4 py-3 text-sm text-fg-soft">
-          This demo has uploads turned off, so pick one of the papers below. To use your own
-          papers, run Research Companion locally (see the README).
-        </p>
+        <DemoNote credits={DEMO_PAPERS} />
       ) : null}
 
       {error ? (

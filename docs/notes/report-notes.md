@@ -691,6 +691,13 @@ redistributable papers belong on the public demo:
   Metamorphic Relations* (2502.15844, FSE 2025, ACM), *VGGT* (2503.11651, CVPR 2025): arXiv's
   non-exclusive distribution licence, which only lets arXiv distribute them. Kept for local use
   and the evaluation; not uploaded to the public demo.
+- Added to the demo (checked 2026-11-26): *Enhancing Hallucination Detection through Noise
+  Injection* (2502.03799, ICLR 2026) and *SPUQ* (2403.02509), both **CC BY 4.0**. *The Internal
+  State of an LLM Knows When It's Lying* (2304.13734) is CC BY-NC-ND 4.0; left off because the
+  app chunks and quotes papers, and "no derivatives" makes that a grey area.
+- CC BY requires attribution, so demo mode shows a "Paper credits" list (title, authors, arXiv
+  link, licence link) under a "Demo mode" note; the list lives in `frontend/src/lib/demo-papers.ts`
+  and must match what is uploaded.
 
 **Bugs and findings**
 - The test for "a failed file save rolls back the database" was removed: with the PDF in the
