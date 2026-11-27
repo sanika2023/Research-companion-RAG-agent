@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 from sqlalchemy import Engine, func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -7,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from app.db.models import Chunk, Document
 from app.ingestion.parse import InvalidPDFError
 from app.ingestion.pipeline import IngestResult, NoTextError, ingest_pdf
+from app.ingestion.store import get_pdf
 from tests.conftest import FakeEmbedder
 from tests.pdf_factory import Text, make_pdf
 
@@ -17,14 +16,13 @@ TWO_PAGE_PDF = make_pdf(
 )
 
 
-async def ingest(engine: AsyncEngine, data: bytes, upload_dir: Path) -> IngestResult:
+async def ingest(engine: AsyncEngine, data: bytes) -> IngestResult:
     async with AsyncSession(engine) as session:
         return await ingest_pdf(
             data,
             "paper.pdf",
             session=session,
             embedder=FakeEmbedder(),
-            upload_dir=upload_dir,
             chunk_size=1000,
             chunk_overlap=150,
         )
@@ -36,9 +34,9 @@ async def count(engine: AsyncEngine, model: type[Document] | type[Chunk]) -> int
 
 
 async def test_ingest_stores_document_and_page_tagged_chunks(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
+    sync_engine: Engine, async_engine: AsyncEngine
 ) -> None:
-    result = await ingest(async_engine, TWO_PAGE_PDF, tmp_path)
+    result = await ingest(async_engine, TWO_PAGE_PDF)
 
     async with AsyncSession(async_engine) as session:
         doc = (await session.execute(select(Document))).scalar_one()
@@ -53,9 +51,9 @@ async def test_ingest_stores_document_and_page_tagged_chunks(
 
 
 async def test_ingest_stores_each_chunks_embedding(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
+    sync_engine: Engine, async_engine: AsyncEngine
 ) -> None:
-    await ingest(async_engine, TWO_PAGE_PDF, tmp_path)
+    await ingest(async_engine, TWO_PAGE_PDF)
     [expected] = await FakeEmbedder().embed(["Transformers rely on attention."])
 
     async with AsyncSession(async_engine) as session:
@@ -65,9 +63,9 @@ async def test_ingest_stores_each_chunks_embedding(
 
 
 async def test_ingested_chunks_are_keyword_searchable(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
+    sync_engine: Engine, async_engine: AsyncEngine
 ) -> None:
-    await ingest(async_engine, TWO_PAGE_PDF, tmp_path)
+    await ingest(async_engine, TWO_PAGE_PDF)
 
     with sync_engine.connect() as conn:
         pages = (
@@ -81,42 +79,28 @@ async def test_ingested_chunks_are_keyword_searchable(
     assert pages == [1]
 
 
-async def test_ingest_saves_the_original_pdf_under_its_document_id(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
+async def test_ingest_stores_the_original_pdf_with_the_document(
+    sync_engine: Engine, async_engine: AsyncEngine
 ) -> None:
-    result = await ingest(async_engine, TWO_PAGE_PDF, tmp_path)
+    result = await ingest(async_engine, TWO_PAGE_PDF)
 
-    saved = tmp_path / f"{result.doc_id}.pdf"
-    assert saved.read_bytes() == TWO_PAGE_PDF
+    async with AsyncSession(async_engine) as session:
+        assert await get_pdf(session, result.doc_id) == TWO_PAGE_PDF
 
 
 async def test_invalid_pdf_is_rejected_and_nothing_is_stored(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
+    sync_engine: Engine, async_engine: AsyncEngine
 ) -> None:
     with pytest.raises(InvalidPDFError):
-        await ingest(async_engine, b"not a pdf", tmp_path)
+        await ingest(async_engine, b"not a pdf")
 
     assert await count(async_engine, Document) == 0
-    assert list(tmp_path.iterdir()) == []
 
 
 async def test_pdf_without_extractable_text_is_rejected(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
+    sync_engine: Engine, async_engine: AsyncEngine
 ) -> None:
     with pytest.raises(NoTextError):
-        await ingest(async_engine, make_pdf([[], []]), tmp_path)
+        await ingest(async_engine, make_pdf([[], []]))
 
     assert await count(async_engine, Document) == 0
-
-
-async def test_failure_while_saving_the_file_rolls_back_the_database(
-    sync_engine: Engine, async_engine: AsyncEngine, tmp_path: Path
-) -> None:
-    not_a_dir = tmp_path / "blocker"
-    not_a_dir.write_text("a file where the upload directory should be")
-
-    with pytest.raises(OSError):
-        await ingest(async_engine, TWO_PAGE_PDF, not_a_dir)
-
-    assert await count(async_engine, Document) == 0
-    assert await count(async_engine, Chunk) == 0

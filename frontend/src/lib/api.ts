@@ -4,6 +4,7 @@ import type {
   DiagnoseResponse,
   DocumentSummary,
   DocumentUploaded,
+  Features,
 } from "@/types/api";
 
 export type Fetch = typeof fetch;
@@ -23,6 +24,10 @@ export class ApiError extends Error {
 
 export async function listDocuments(fetchFn: Fetch = browserFetch): Promise<DocumentSummary[]> {
   return parse(await fetchFn(`${API_URL}/documents`, { cache: "no-store" }));
+}
+
+export async function getFeatures(fetchFn: Fetch = browserFetch): Promise<Features> {
+  return parse(await fetchFn(`${API_URL}/features`, { cache: "no-store" }));
 }
 
 export async function uploadDocument(

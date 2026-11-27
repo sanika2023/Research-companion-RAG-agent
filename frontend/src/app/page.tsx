@@ -5,19 +5,25 @@ import { useEffect, useState } from "react";
 
 import { PaperList } from "@/components/papers/PaperList";
 import { UploadForm } from "@/components/papers/UploadForm";
-import { listDocuments } from "@/lib/api";
+import { getFeatures, listDocuments } from "@/lib/api";
 import { API_URL } from "@/lib/config";
-import type { DocumentSummary } from "@/types/api";
+import type { DocumentSummary, Features } from "@/types/api";
 
 export default function HomePage() {
   const router = useRouter();
   const [papers, setPapers] = useState<DocumentSummary[] | null>(null);
   const [error, setError] = useState(false);
+  const [features, setFeatures] = useState<Features | null>(null);
 
   useEffect(() => {
     listDocuments()
       .then(setPapers)
       .catch(() => setError(true));
+    // Unknown until the server answers; uploads stay hidden so the demo never flashes them.
+    // On failure, the papers request above already reports the unreachable backend.
+    getFeatures()
+      .then(setFeatures)
+      .catch(() => undefined);
   }, []);
 
   return (
@@ -33,7 +39,14 @@ export default function HomePage() {
         </p>
       </section>
 
-      <UploadForm onUploaded={(doc) => router.push(`/papers/${doc.doc_id}`)} />
+      {features?.uploads_enabled ? (
+        <UploadForm onUploaded={(doc) => router.push(`/papers/${doc.doc_id}`)} />
+      ) : features ? (
+        <p className="rounded-lg border border-accent-line bg-accent-faint px-4 py-3 text-sm text-fg-soft">
+          This demo has uploads turned off, so pick one of the papers below. To use your own
+          papers, run Research Companion locally (see the README).
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-sm text-danger">

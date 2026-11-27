@@ -1,7 +1,6 @@
 import asyncio
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,11 +27,10 @@ async def ingest_pdf(
     *,
     session: AsyncSession,
     embedder: Embedder,
-    upload_dir: Path,
     chunk_size: int,
     chunk_overlap: int,
 ) -> IngestResult:
-    """PDF bytes -> parsed pages -> chunks -> embeddings -> one DB transaction + saved file."""
+    """PDF bytes -> parsed pages -> chunks -> embeddings -> one DB transaction (PDF included)."""
     # Parsing is CPU-bound; keep it off the event loop.
     page_count, chunks = await asyncio.to_thread(_parse_and_chunk, data, chunk_size, chunk_overlap)
     if not chunks:
@@ -41,10 +39,8 @@ async def ingest_pdf(
     embeddings = await embedder.embed([c.text for c in chunks])
 
     try:
-        doc = await add_document(session, filename, page_count, chunks, embeddings)
+        doc = await add_document(session, filename, page_count, chunks, embeddings, data)
         doc_id = doc.id  # read before commit: commit expires attributes, and async can't reload
-        # File first, commit last: if the write fails, the rollback leaves no orphan rows.
-        await asyncio.to_thread(_save_pdf, upload_dir, doc_id, data)
         await session.commit()
     except BaseException:
         await session.rollback()
@@ -55,13 +51,3 @@ async def ingest_pdf(
 def _parse_and_chunk(data: bytes, size: int, overlap: int) -> tuple[int, list[Chunk]]:
     parsed = parse_pdf(data)
     return parsed.page_count, chunk_pages(parsed.pages, size=size, overlap=overlap)
-
-
-def pdf_path(upload_dir: Path, doc_id: uuid.UUID) -> Path:
-    """Where a paper's original PDF is kept (the only place that decides this)."""
-    return upload_dir / f"{doc_id}.pdf"
-
-
-def _save_pdf(upload_dir: Path, doc_id: uuid.UUID, data: bytes) -> None:
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path(upload_dir, doc_id).write_bytes(data)

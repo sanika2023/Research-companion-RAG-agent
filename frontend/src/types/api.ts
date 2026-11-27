@@ -8,6 +8,9 @@ export type DocumentSummary = {
   created_at: string;
 };
 
+/** What the server allows (GET /features); uploads are off on the public demo. */
+export type Features = { uploads_enabled: boolean };
+
 export type DocumentUploaded = Omit<DocumentSummary, "created_at">;
 
 export type Citation = {

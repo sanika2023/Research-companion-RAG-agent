@@ -26,7 +26,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - uploads:/app/data/uploads # original PDFs survive container rebuilds
+      # PDFs now live in the database; this is only read once, by migration 0002, to import
+      # PDFs saved here by older versions. Safe to remove after that has run.
+      - uploads:/app/data/uploads
     depends_on:
       db:
         condition: service_healthy

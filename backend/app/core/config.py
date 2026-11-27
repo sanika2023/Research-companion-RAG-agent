@@ -26,7 +26,8 @@ class Settings(BaseSettings):
     chunk_size: int = Field(default=1000, gt=0)
     chunk_overlap: int = Field(default=150, ge=0)
     max_upload_mb: int = Field(default=50, gt=0)
-    upload_dir: Path = Path("data/uploads")
+    # False on the public demo: visitors can ask about the loaded papers but not add their own.
+    allow_uploads: bool = True
 
     retrieval_top_k: int = Field(default=8, gt=0)
     # How many hits each search (keyword, vector) contributes before fusion.
@@ -62,7 +63,7 @@ class Settings(BaseSettings):
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
             max_upload_mb=self.max_upload_mb,
-            upload_dir=self.upload_dir,
+            allow_uploads=self.allow_uploads,
         )
 
     @property
@@ -93,7 +94,7 @@ class IngestSettings:
     chunk_size: int
     chunk_overlap: int
     max_upload_mb: int
-    upload_dir: Path
+    allow_uploads: bool
 
 
 @dataclass(frozen=True)

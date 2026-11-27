@@ -1,0 +1,11 @@
+# What `gcloud run deploy --source backend` must NOT upload to Cloud Build.
+# Mirrors .dockerignore: local caches, tests, and data/ (models, uploaded PDFs).
+.gcloudignore
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+tests
+data
+.env
