@@ -1,10 +1,24 @@
 # Research Companion RAG Agent
 
-Auditable research companion for academic papers: hybrid-search RAG with page-linked citations and a perturbation-based hallucination inspector.
+An auditable research companion for academic papers. Upload a PDF, ask questions about it, and
+get answers you can check: every claim links to the exact passage it came from, highlighted in
+the paper, and each answer can be tested for hallucination risk. Built as an honors thesis
+project.
 
-This web app will make it easier for you to comprehend research papers and understand the big idea faster.
+**Live demo:** https://research-companion-rag-agent.vercel.app. It's read-only, with three CC BY
+papers loaded; to upload your own papers, [run it locally with Docker](#run-with-docker-full-stack).
+The first question after a quiet period can take up to a minute while the backend wakes up.
 
-This uses a RAG system and references items in the given ground truth.
+**Features**
+- **Hybrid search:** keyword (Postgres full-text) and vector search, fused with Reciprocal Rank
+  Fusion, always scoped to the paper you're reading.
+- **Cited answers:** a LangGraph agent splits multi-step questions into sub-questions, answers
+  only from retrieved passages, and refuses when the paper doesn't say.
+- **Page-linked citations:** clicking a citation jumps the PDF viewer to the cited passage and
+  highlights it.
+- **Streaming:** progress steps and answer text arrive live over Server-Sent Events.
+- **Hallucination inspector:** re-asks the question with small controlled changes and scores
+  how much the answer moves (0 = stable, 1 = unstable), with a per-check breakdown.
 
 ## Architecture
 
@@ -80,12 +94,15 @@ classify ─► [decompose if multi-step] ─► retrieve ─► synthesize ─�
 | `frontend/src/components/` | PDF viewer, chat, citations, diagnostics drawer |
 | `docs/decisions/` | Design decisions (ADRs) behind each part |
 
-All model calls use the Gemini API: Flash for answers, and Flash-Lite for routing and the answer checks. The design reasoning is recorded in [`docs/decisions/`](docs/decisions/), from 0001 (chunk schema) to 0008 (diagnostics drawer).
+All model calls use the Gemini API: Flash for answers, and Flash-Lite for routing and the answer checks. The design reasoning is recorded in [`docs/decisions/`](docs/decisions/), from 0001 (chunk schema) to 0011 (deployment).
 
 ## Prerequisites
+To run the app:
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running)
-- [uv](https://docs.astral.sh/uv/) for local backend development (installs Python 3.12 itself)
-- A Gemini API key from Google AI Studio
+- A free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
+
+Only for development without Docker: [uv](https://docs.astral.sh/uv/) (installs Python 3.12
+itself) and Node.js 20.18+.
 
 ## Setup
 ```bash
@@ -101,61 +118,10 @@ docker compose up --build
 - API health: http://localhost:8000/health
 - Interactive API docs: http://localhost:8000/docs
 
-The backend applies database migrations automatically on startup. Postgres is exposed on host
-port **5433** (not 5432) to avoid clashing with a locally installed Postgres.
-
-## Upload a paper
-Use the **Try it out** button on `POST /documents` at http://localhost:8000/docs, or:
-```bash
-curl -F "file=@paper.pdf" http://localhost:8000/documents   # -> doc_id, page_count, chunk_count
-curl http://localhost:8000/documents                        # list uploaded papers
-```
-Ingestion takes roughly 15–25 s per paper on a laptop CPU (embedding dominates). The original
-PDF is stored in the database with its chunks (older versions kept it in `backend/data/uploads/`;
-migration 0002 imports those).
-
-## Ask a question about a paper
-Needs `LLM_API_KEY` (a free Gemini API key from Google AI Studio) in `.env`.
-```bash
-curl -X POST http://localhost:8000/documents/<doc_id>/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Which datasets were used to evaluate the method?"}'
-```
-The answer cites passages as `[n]`; each citation has its page, text, and bounding boxes.
-`refused: true` means the paper doesn't answer the question. A `503` means Gemini is busy:
-retry, or set `LLM_ANSWER_MODEL` to the Flash-Lite model.
-
-To watch the answer arrive as it is written, use the streaming endpoint (`-N` turns off
-curl's buffering):
-```bash
-curl -N -X POST http://localhost:8000/documents/<doc_id>/ask/stream   -H "Content-Type: application/json"   -d '{"question": "Which datasets were used to evaluate the method?"}'
-```
-It sends Server-Sent Events: `status` (each step as it starts), `sub_questions`, `token`
-(answer text), then `done` (the checked answer with citations, same as `/ask`) or `error`.
-Lines starting with `:` are keep-alive pings.
-
-## Check an answer's hallucination risk
-The perturbation inspector re-asks the question with one controlled change at a time and
-measures how far the answer moves. Send back the question, the `answer`, and the
-`passage_ids` from an `/ask` response (plus `sub_questions`, if any):
-```bash
-curl -X POST http://localhost:8000/documents/<doc_id>/diagnose   -H "Content-Type: application/json"   -d '{"question": "...", "answer": "...", "passage_ids": ["...", "..."]}'
-```
-`uncertainty` is 0 (stable) to 1 (unstable). `signals` gives a breakdown for each change:
-`paraphrase` (reworded question), `reorder` (passages reversed), `distractor` (an unrelated
-passage of the paper added), and `drop_cited` (the most-cited passage removed; shown but not
-scored by default). Each has its `risk`, embedding `similarity`, `claim_agreement` with the
-original's `claims`, and the perturbed answer itself. It makes about six Flash-Lite calls,
-typically 5-20 seconds.
-
-## Search a paper
-Searches are scoped to one paper (hybrid keyword + vector search, fused with RRF):
-```bash
-curl -X POST http://localhost:8000/documents/<doc_id>/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Which datasets were used?", "top_k": 5}'
-```
-Each hit has the page, text, bounding boxes, and its `keyword_rank` / `vector_rank`.
+The first build takes several minutes (it downloads the embedding model into the image); later
+starts take seconds. The backend applies database migrations automatically on startup. Postgres
+is exposed on host port **5433** (not 5432) to avoid clashing with a locally installed Postgres.
+Uploaded papers are kept in the database volume, so they survive restarts.
 
 ## Using the app
 1. On http://localhost:3000, upload a PDF (processing takes about 20 s) or pick an uploaded paper.
@@ -171,7 +137,68 @@ Each hit has the page, text, bounding boxes, and its `keyword_rank` / `vector_ra
    double-click resets to 50/50). The theme button in the header cycles Light, Dark, and System
    (follows your OS). Both choices are remembered in your browser.
 
-## Run the frontend locally (hot reload)
+## Using the API
+Everything the app does is also available over HTTP; interactive docs with **Try it out**
+buttons are at http://localhost:8000/docs.
+
+### Upload a paper
+```bash
+curl -F "file=@paper.pdf" http://localhost:8000/documents   # -> doc_id, page_count, chunk_count
+curl http://localhost:8000/documents                        # list uploaded papers
+```
+Ingestion takes roughly 15–25 s per paper on a laptop CPU (embedding dominates). The original
+PDF is stored in the database with its chunks.
+
+### Ask a question
+Needs `LLM_API_KEY` in `.env`.
+```bash
+curl -X POST http://localhost:8000/documents/<doc_id>/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Which datasets were used to evaluate the method?"}'
+```
+The answer cites passages as `[n]`; each citation has its page, text, and bounding boxes.
+`refused: true` means the paper doesn't answer the question. A `503` means Gemini is busy:
+retry, or set `LLM_ANSWER_MODEL` to the Flash-Lite model.
+
+To watch the answer arrive as it is written, use the streaming endpoint (`-N` turns off
+curl's buffering):
+```bash
+curl -N -X POST http://localhost:8000/documents/<doc_id>/ask/stream \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Which datasets were used to evaluate the method?"}'
+```
+It sends Server-Sent Events: `status` (each step as it starts), `sub_questions`, `token`
+(answer text), then `done` (the checked answer with citations, same as `/ask`) or `error`.
+Lines starting with `:` are keep-alive pings.
+
+### Check an answer's hallucination risk
+The perturbation inspector re-asks the question with one controlled change at a time and
+measures how far the answer moves. Send back the question, the `answer`, and the
+`passage_ids` from an `/ask` response (plus `sub_questions`, if any):
+```bash
+curl -X POST http://localhost:8000/documents/<doc_id>/diagnose \
+  -H "Content-Type: application/json" \
+  -d '{"question": "...", "answer": "...", "passage_ids": ["...", "..."]}'
+```
+`uncertainty` is 0 (stable) to 1 (unstable). `signals` gives a breakdown for each change:
+`paraphrase` (reworded question), `reorder` (passages reversed), `distractor` (an unrelated
+passage of the paper added), and `drop_cited` (the most-cited passage removed; shown but not
+scored by default). Each has its `risk`, embedding `similarity`, `claim_agreement` with the
+original's `claims`, and the perturbed answer itself. It makes about six Flash-Lite calls,
+typically 5-20 seconds.
+
+### Search a paper
+Searches are scoped to one paper (hybrid keyword + vector search, fused with RRF):
+```bash
+curl -X POST http://localhost:8000/documents/<doc_id>/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Which datasets were used?", "top_k": 5}'
+```
+Each hit has the page, text, bounding boxes, and its `keyword_rank` / `vector_rank`.
+
+## Development without Docker
+
+### Frontend (hot reload)
 Needs Node.js 20.18+ (24 LTS recommended) and the backend on port 8000.
 ```bash
 cd frontend
@@ -183,7 +210,7 @@ This value is compiled into the browser code at **build time**: after changing i
 (`docker compose build frontend`). The backend only accepts browser requests from the origins in
 `CORS_ORIGINS` (default `http://localhost:3000`).
 
-## Run the backend locally (auto-reload)
+### Backend (auto-reload)
 ```bash
 docker compose up -d db          # database only
 cd backend
@@ -204,9 +231,10 @@ npm run typecheck && npm run lint
 ```
 
 ## Evaluation
-The question set is in `eval/queries/queries.jsonl` (29 questions over four sample papers,
-each with expected pages and a reference answer). Run the scripts from `backend/`, with the
-database up and the papers uploaded under the filenames in the question file:
+The question set is in `eval/queries/queries.jsonl` (29 questions over four arXiv papers, each
+with expected pages and a reference answer). The papers aren't in the repo, since most of their
+licences don't allow redistribution; download them from arXiv. Run the scripts from `backend/`,
+with the database up and the papers uploaded under the filenames in the question file:
 ```bash
 uv run python -m app.evaluation.retrieval_run   # keyword vs vector vs hybrid; no model calls
 uv run python -m app.evaluation.answer_run      # needs the backend running; resumable
@@ -294,6 +322,11 @@ Press `Ctrl+C` to stop a locally running `uvicorn`.
 - **The demo has no upload button:** the backend runs with `ALLOW_UPLOADS=false`; set it to
   `true` (in `.env` locally) and restart the backend.
 - **`docker` not recognized:** restart VS Code / your terminal after installing Docker Desktop.
+- **Docker build fails with `Failed to fetch Inter from Google Fonts` or
+  `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, or answers always fail with "busy or unavailable" while
+  search works:** your network or antivirus inspects HTTPS traffic, which Windows trusts but the
+  Linux containers don't. Use another network (e.g. a phone hotspot), or turn off HTTPS
+  scanning in your antivirus.
 - **`invalid peer certificate: UnknownIssuer` from uv:** add `--system-certs` (e.g.
   `uv run --system-certs pytest`) so uv trusts the Windows certificate store.
 - **`role "rag" does not exist` when running locally:** your `.env` points at port 5432 (a
